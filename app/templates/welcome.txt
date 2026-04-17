@@ -1,0 +1,8 @@
+Hola {{ name }},
+
+Tu cuenta ha sido creada y verificada exitosamente.
+
+Ya podés acceder a todos los servicios con tus credenciales.
+
+---
+Este email fue enviado automáticamente por el Servicio de Identidad.

@@ -1,0 +1,78 @@
+{# Shared display helpers for Identidad dashboard.
+   Included only in authenticated pages via shell.html. #}
+<script>
+  // ========================================================================
+  // FORMATTERS
+  // ========================================================================
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d)) return '—';
+    const parts = new Intl.DateTimeFormat('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+      hour12: false,
+    }).formatToParts(d);
+    const p = Object.fromEntries(parts.map(x => [x.type, x.value]));
+    return `${p.hour}:${p.minute} ${p.day}/${p.month}/${p.year}`;
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return '—';
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Ahora';
+    if (mins < 60) return 'hace ' + mins + ' min';
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return 'hace ' + hrs + 'h';
+    const days = Math.floor(hrs / 24);
+    return 'hace ' + days + 'd';
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // ========================================================================
+  // BADGES
+  // ========================================================================
+
+  function roleBadge(role) {
+    const r = (role || '').toLowerCase();
+    const labels = { admin: 'Admin', employee: 'Empleado', agent: 'Agente', service: 'Servicio' };
+    return `<span class="badge badge-${r}">${labels[r] || r}</span>`;
+  }
+
+  function boolBadge(val, trueLabel = 'Sí', falseLabel = 'No', trueClass = 'badge-active', falseClass = 'badge-inactive') {
+    return `<span class="badge ${val ? trueClass : falseClass}">${val ? trueLabel : falseLabel}</span>`;
+  }
+
+  function healthBadge(status) {
+    const s = (status || '').toLowerCase();
+    const cls = { healthy: 'badge-healthy', degraded: 'badge-degraded', unhealthy: 'badge-unhealthy' };
+    return `<span class="badge ${cls[s] || 'badge-inactive'}">${s}</span>`;
+  }
+
+  // ========================================================================
+  // TOAST
+  // ========================================================================
+
+  function showToast(msg, type = 'success') {
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.setAttribute('role', 'status');
+    t.setAttribute('aria-live', 'polite');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => {
+      t.classList.remove('show');
+      setTimeout(() => t.remove(), 300);
+    }, 3000);
+  }
+</script>

@@ -1,0 +1,60 @@
+{# Base template for all transactional emails.
+   Email-safe HTML with inline styles (no CSS classes).
+   Brand identity: dark header, clean body, muted footer. #}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Identity Service{% endblock %}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f6f9; font-family: 'Segoe UI', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  <!-- Wrapper -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f6f9;">
+    <tr>
+      <td align="center" style="padding: 40px 16px;">
+        <!-- Container 600px -->
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+
+          {# ── Header ── #}
+          <tr>
+            <td style="background-color: #111827; padding: 28px 32px; text-align: center;">
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="vertical-align: middle;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background-color: rgba(59,130,246,0.15); display: inline-block; text-align: center; line-height: 36px;">
+                      <span style="color: #3b82f6; font-size: 18px; font-weight: bold;">N</span>
+                    </div>
+                  </td>
+                  <td style="vertical-align: middle; padding-left: 12px;">
+                    <span style="color: #f1f5f9; font-size: 18px; font-weight: 700; letter-spacing: -0.3px;">Identity</span>
+                    <span style="color: #64748b; font-size: 12px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; padding-left: 8px;">{% block header_label %}Identidad{% endblock %}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          {# ── Body ── #}
+          <tr>
+            <td style="background-color: #ffffff; padding: 36px 32px;">
+              {% block content %}{% endblock %}
+            </td>
+          </tr>
+
+          {# ── Footer ── #}
+          <tr>
+            <td style="background-color: #f8fafc; padding: 20px 32px; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; color: #94a3b8; font-size: 11px; line-height: 1.5; text-align: center;">
+                Este email fue enviado automáticamente por el Servicio de Identidad.<br>
+                Por favor no respondas a este mensaje.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

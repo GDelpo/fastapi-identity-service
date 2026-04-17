@@ -1,0 +1,128 @@
+# ============================================================================
+# Identity Service - Docker Compose (Development)
+# ============================================================================
+# 
+# Local development without Traefik.
+# Access API directly at: http://localhost:8080
+#
+# Usage:
+#   docker compose -f docker/docker-compose.yml up -d
+#   docker compose -f docker/docker-compose.yml logs -f
+#   docker compose -f docker/docker-compose.yml down
+# ============================================================================
+
+name: identity-dev
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: identity_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-identity_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-identity_password}
+      POSTGRES_DB: ${DB_NAME:-identity_db}
+    ports:
+      - "${DB_PORT_EXTERNAL:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-identity_user} -d ${DB_NAME:-identity_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - identity_network
+
+  # ---------------------------------------------------------------------------
+  # Redis
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: identity_redis
+    ports:
+      - "${REDIS_PORT_EXTERNAL:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - identity_network
+    command: redis-server --appendonly yes
+
+  # ---------------------------------------------------------------------------
+  # Identity API
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: identity_api
+    env_file:
+      - ../.env
+    environment:
+      # Override for Docker network
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      REDIS_HOST: redis
+      DEBUG: "true"
+    ports:
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      # Mount source for hot reload
+      - ../app:/app/app:ro
+      - ../migrations:/app/migrations:ro
+      - ../alembic.ini:/app/alembic.ini:ro
+      # Logs (opcional, descomentar LOG_FILE en .env)
+      - identity_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - identity_network
+    command: >
+      sh -c "
+        echo '⏳ Waiting for PostgreSQL...' &&
+        until pg_isready -h postgres -p 5432 -U $${DB_USER:-identity_user}; do
+          sleep 2
+        done &&
+        echo '🔄 Running migrations...' &&
+        alembic upgrade head &&
+        echo '🚀 Starting API (dev mode with hot reload)...' &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+      "
+
+  # ---------------------------------------------------------------------------
+  # PgAdmin (optional - use profile)
+  # ---------------------------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: identity_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@admin.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - identity_network
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:
+  identity_logs:
+
+networks:
+  identity_network:
+    driver: bridge

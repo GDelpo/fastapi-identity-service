@@ -1,0 +1,41 @@
+# FastAPI and ASGI server
+fastapi==0.128.0
+starlette==0.50.0
+uvicorn[standard]==0.32.1
+gunicorn==23.0.0
+
+# Templates (dashboard)
+jinja2==3.1.6
+
+# Database (SQLAlchemy 2.0+ compatible)
+sqlmodel==0.0.31
+asyncpg==0.31.0
+alembic==1.14.0
+
+# Cache
+redis[hiredis]==5.2.1
+
+# Authentication
+bcrypt==4.0.1
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.19
+PyJWT==2.10.1
+itsdangerous==2.2.0
+
+# LDAP
+ldap3==2.9.1
+
+# Settings and validation
+pydantic==2.12.5
+pydantic-settings==2.12.0
+python-dotenv==1.0.1
+
+# Email validation
+email-validator==2.2.0
+
+# Rate limiting
+slowapi==0.1.9
+
+# HTTP client
+requests>=2.31.0
+httpx>=0.27.0

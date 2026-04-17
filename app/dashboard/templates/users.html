@@ -1,0 +1,341 @@
+{# Users list page — filters, table, pagination #}
+{% extends "shell.html" %}
+
+{% block title %}{{ service_name }} — Usuarios{% endblock %}
+
+{% block page_content %}
+<!-- Create user modal -->
+<div id="modal-create" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,.6);">
+  <div class="card p-6 w-full max-w-md mx-4 relative">
+    <button onclick="closeModal()" class="absolute top-4 right-4 btn btn-ghost btn-sm p-1">
+      <i data-lucide="x" class="w-4 h-4"></i>
+    </button>
+    <h2 class="text-base font-semibold mb-5 flex items-center gap-2">
+      <i data-lucide="user-plus" class="w-4 h-4" style="color: var(--color-accent);"></i>
+      Nuevo usuario
+    </h2>
+    <form id="form-create" class="space-y-4" onsubmit="submitCreate(event)">
+      <div>
+        <label class="block text-[10px] font-medium uppercase tracking-wider mb-1" style="color: var(--color-text-muted);">Nombre de usuario *</label>
+        <input type="text" id="create-username" class="input" placeholder="ej: svc_billing" autocomplete="off" required pattern="[a-zA-Z0-9_.\\-]+" title="Solo letras, números, puntos, guiones y guiones bajos" />
+      </div>
+      <div>
+        <label class="block text-[10px] font-medium uppercase tracking-wider mb-1" style="color: var(--color-text-muted);">Rol *</label>
+        <select id="create-role" class="select w-full" onchange="onRoleChange()">
+          <option value="employee">Empleado</option>
+          <option value="agent">Agente</option>
+          <option value="service">Servicio</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div id="create-email-row">
+        <label class="block text-[10px] font-medium uppercase tracking-wider mb-1" style="color: var(--color-text-muted);">Email *</label>
+        <input type="email" id="create-email" class="input" placeholder="usuario@example.com" autocomplete="off" />
+      </div>
+      <div>
+        <label class="block text-[10px] font-medium uppercase tracking-wider mb-1" style="color: var(--color-text-muted);">Contraseña *</label>
+        <input type="password" id="create-password" class="input" placeholder="Mín. 8 caracteres" autocomplete="new-password" required minlength="8" />
+      </div>
+      <div id="create-error" class="hidden text-xs p-3 rounded-lg" style="background: var(--color-error-soft); color: var(--color-error);"></div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="closeModal()" class="btn btn-ghost btn-sm">Cancelar</button>
+        <button type="submit" id="btn-create-submit" class="btn btn-primary btn-sm">
+          <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> Crear
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="users-page">
+  <!-- Page header -->
+  <div class="flex items-center justify-between mb-4">
+    <div></div>
+    <button onclick="openModal()" class="btn btn-primary btn-sm">
+      <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> Nuevo usuario
+    </button>
+  </div>
+
+  <!-- Filter panel -->
+  <details id="filter-panel" class="filter-panel card mb-4" open>
+    <summary class="flex items-center justify-between px-5 py-3 cursor-pointer select-none">
+      <span class="text-sm font-medium flex items-center gap-2" style="color:var(--color-text-secondary)">
+        <i data-lucide="sliders-horizontal" class="w-4 h-4" aria-hidden="true"></i>
+        Filtros
+        <span id="filter-badge" class="badge badge-active hidden" style="font-size:10px">0</span>
+      </span>
+      <i data-lucide="chevron-down" class="w-4 h-4 filter-chevron" aria-hidden="true"></i>
+    </summary>
+    <div class="px-5 pb-4 pt-3 border-t" style="border-color:var(--color-border-subtle)">
+      <div class="flex flex-wrap items-end gap-3">
+        <div class="flex-1 min-w-[200px]">
+          <label class="block text-[10px] font-medium uppercase tracking-wider mb-1" style="color:var(--color-text-muted);">Buscar</label>
+          <input type="text" id="filter-search" class="input" placeholder="Usuario o email…" autocomplete="off" />
+        </div>
+        <div>
+          <label class="block text-[10px] font-medium uppercase tracking-wider mb-1" style="color:var(--color-text-muted);">Rol</label>
+          <select id="filter-role" class="select">
+            <option value="">Todos</option>
+            <option value="admin">Admin</option>
+            <option value="employee">Empleado</option>
+            <option value="agent">Agente</option>
+            <option value="service">Servicio</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-medium uppercase tracking-wider mb-1" style="color:var(--color-text-muted);">Estado</label>
+          <select id="filter-active" class="select">
+            <option value="">Todos</option>
+            <option value="true">Activos</option>
+            <option value="false">Inactivos</option>
+          </select>
+        </div>
+        <button onclick="loadUsers(0)" class="btn btn-primary btn-sm">
+          <i data-lucide="search" class="w-3.5 h-3.5" aria-hidden="true"></i>
+          Buscar
+        </button>
+        <button onclick="clearFilters()" class="btn btn-ghost btn-sm">Limpiar</button>
+      </div>
+    </div>
+  </details>
+
+  <!-- Table -->
+  <div class="card">
+    <div class="overflow-x-auto">
+      <table class="data-table w-full">
+        <thead>
+          <tr>
+            <th class="sortable-col" onclick="setSort('user_name')">
+              Usuario <span class="sort-icon" id="sort-user_name"><i data-lucide="chevrons-up-down" class="w-3 h-3" aria-hidden="true"></i></span>
+            </th>
+            <th class="hidden md:table-cell">Email</th>
+            <th class="sortable-col" onclick="setSort('role')">
+              Rol <span class="sort-icon" id="sort-role"><i data-lucide="chevrons-up-down" class="w-3 h-3" aria-hidden="true"></i></span>
+            </th>
+            <th>Estado</th>
+            <th class="sortable-col hidden md:table-cell" onclick="setSort('created_at')">
+              Creado <span class="sort-icon" id="sort-created_at"><i data-lucide="chevrons-up-down" class="w-3 h-3" aria-hidden="true"></i></span>
+            </th>
+          </tr>
+        </thead>
+        <tbody id="users-table-body">
+          <tr><td colspan="5" class="text-center py-12"><div class="skeleton h-4 w-48 mx-auto"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="px-5 py-3 flex items-center justify-between border-t" style="border-color: var(--color-border-subtle);">
+      <div id="pagination-info" class="text-xs" style="color: var(--color-text-muted);">Cargando…</div>
+      <div class="flex items-center gap-1">
+        <button id="btn-prev" onclick="prevPage()" class="btn btn-ghost btn-sm" disabled>
+          <i data-lucide="chevron-left" class="w-3.5 h-3.5" aria-hidden="true"></i> Anterior
+        </button>
+        <button id="btn-next" onclick="nextPage()" class="btn btn-ghost btn-sm" disabled>
+          Siguiente <i data-lucide="chevron-right" class="w-3.5 h-3.5" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  document.body.dataset.currentPage = 'users';
+
+  let currentSkip = 0;
+  const PAGE_SIZE = 20;
+  let currentTotal = 0;
+  let sortField = 'user_name';
+  let sortDir = 'asc';
+
+  function refreshCurrentPage() { loadUsers(currentSkip); }
+
+  function setSort(field) {
+    if (sortField === field) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortField = field;
+      sortDir = 'asc';
+    }
+    updateSortIcons();
+    loadUsers(0);
+  }
+
+  function updateSortIcons() {
+    document.querySelectorAll('.sort-icon').forEach(el => el.classList.remove('active'));
+    const icon = document.getElementById('sort-' + sortField);
+    if (icon) {
+      icon.classList.add('active');
+      icon.innerHTML = sortDir === 'asc'
+        ? '<i data-lucide="chevron-up" class="w-3 h-3" aria-hidden="true"></i>'
+        : '<i data-lucide="chevron-down" class="w-3 h-3" aria-hidden="true"></i>';
+      lucide.createIcons();
+    }
+  }
+
+  function updateFilterBadge() {
+    const search = document.getElementById('filter-search')?.value.trim() || '';
+    const role = document.getElementById('filter-role')?.value || '';
+    const active = document.getElementById('filter-active')?.value || '';
+    const count = [search, role, active].filter(Boolean).length;
+    const badge = document.getElementById('filter-badge');
+    if (badge) {
+      badge.textContent = count;
+      badge.classList.toggle('hidden', count === 0);
+    }
+  }
+
+  function clearFilters() {
+    document.getElementById('filter-search').value = '';
+    document.getElementById('filter-role').value = '';
+    document.getElementById('filter-active').value = '';
+    updateFilterBadge();
+    loadUsers(0);
+  }
+
+  async function loadUsers(skip = 0) {
+    currentSkip = skip;
+    const search = document.getElementById('filter-search')?.value.trim() || '';
+    const role = document.getElementById('filter-role')?.value || '';
+    const isActive = document.getElementById('filter-active')?.value;
+
+    updateFilterBadge();
+
+    const tbody = document.getElementById('users-table-body');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-12"><div class="skeleton h-4 w-48 mx-auto"></div></td></tr>';
+
+    let qs = `?skip=${skip}&limit=${PAGE_SIZE}&sort_by=${sortField}:${sortDir}`;
+    if (search) qs += `&search=${encodeURIComponent(search)}`;
+    if (role) qs += `&role=${role}`;
+    if (isActive !== undefined && isActive !== '') qs += `&is_active=${isActive}`;
+
+    const resp = await apiFetch(qs);
+    if (!resp || !resp.ok) return;
+
+    const data = await resp.json();
+    currentTotal = data.meta.total;
+    renderUsersTable(data.data || []);
+
+    const info = document.getElementById('pagination-info');
+    const from = skip + 1;
+    const to = Math.min(skip + PAGE_SIZE, currentTotal);
+    info.textContent = currentTotal > 0 ? `${from}–${to} de ${currentTotal}` : 'Sin resultados';
+
+    document.getElementById('btn-prev').disabled = skip === 0;
+    document.getElementById('btn-next').disabled = (skip + PAGE_SIZE) >= currentTotal;
+  }
+
+  function prevPage() { if (currentSkip >= PAGE_SIZE) loadUsers(currentSkip - PAGE_SIZE); }
+  function nextPage() { if (currentSkip + PAGE_SIZE < currentTotal) loadUsers(currentSkip + PAGE_SIZE); }
+
+  function renderUsersTable(users) {
+    const tbody = document.getElementById('users-table-body');
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-12" style="color:var(--color-text-muted)">No se encontraron usuarios con los filtros aplicados.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = users.map(u => {
+      return `<tr onclick="window.location.href='${BASE}/dashboard/users/${u.id}'">
+        <td class="font-medium" style="color:var(--color-text-primary)">${esc(u.userName)}</td>
+        <td class="hidden md:table-cell font-mono text-xs max-w-[250px] truncate">${esc(u.mail || '—')}</td>
+        <td>${roleBadge(u.role)}</td>
+        <td>${boolBadge(u.isActive, 'Activo', 'Inactivo')}</td>
+        <td class="hidden md:table-cell text-xs whitespace-nowrap">${formatDate(u.createdAt)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  document.querySelectorAll('#users-page .select').forEach(sel => {
+    sel.addEventListener('change', () => loadUsers(0));
+  });
+  document.getElementById('filter-search')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') loadUsers(0);
+  });
+  document.getElementById('filter-search')?.addEventListener('input', updateFilterBadge);
+
+  updateSortIcons();
+  loadUsers(0);
+
+  // ── Create user modal ────────────────────────────────────────────────────
+
+  function openModal() {
+    document.getElementById('form-create').reset();
+    document.getElementById('create-error').classList.add('hidden');
+    onRoleChange();
+    document.getElementById('modal-create').classList.remove('hidden');
+    document.getElementById('create-username').focus();
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function closeModal() {
+    document.getElementById('modal-create').classList.add('hidden');
+  }
+
+  // Close on backdrop click
+  document.getElementById('modal-create').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  function onRoleChange() {
+    const role = document.getElementById('create-role').value;
+    const emailRow = document.getElementById('create-email-row');
+    const emailInput = document.getElementById('create-email');
+    if (role === 'service') {
+      emailRow.classList.add('hidden');
+      emailInput.removeAttribute('required');
+      emailInput.value = '';
+    } else {
+      emailRow.classList.remove('hidden');
+      emailInput.setAttribute('required', '');
+    }
+  }
+
+  async function submitCreate(e) {
+    e.preventDefault();
+    const errEl = document.getElementById('create-error');
+    errEl.classList.add('hidden');
+
+    const username = document.getElementById('create-username').value.trim();
+    const role = document.getElementById('create-role').value;
+    const email = document.getElementById('create-email').value.trim();
+    const password = document.getElementById('create-password').value;
+
+    const payload = { user_name: username, password, role };
+    if (email) payload.mail = email;
+
+    const btn = document.getElementById('btn-create-submit');
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Creando…';
+    if (window.lucide) lucide.createIcons();
+
+    const resp = await apiFetch('', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="user-plus" class="w-3.5 h-3.5"></i> Crear';
+    if (window.lucide) lucide.createIcons();
+
+    if (resp && resp.ok) {
+      const user = await resp.json();
+      closeModal();
+      showToast(`Usuario "${user.userName}" creado`, 'success');
+      loadUsers(0);
+    } else {
+      const err = await resp?.json().catch(() => ({}));
+      const msg = err?.detail || err?.message || 'Error al crear el usuario';
+      errEl.textContent = typeof msg === 'string' ? msg : JSON.stringify(msg);
+      errEl.classList.remove('hidden');
+    }
+  }
+</script>
+{% endblock %}

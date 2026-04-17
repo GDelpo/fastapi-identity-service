@@ -1,0 +1,122 @@
+# ============================================================================
+# Identity Service - Docker Compose (Production Standalone)
+# ============================================================================
+#
+# Production deployment WITHOUT Traefik.
+# Use this when:
+#   - Running behind a different reverse proxy (Nginx, HAProxy)
+#   - Running in Kubernetes with Ingress
+#   - Direct access is acceptable (internal services)
+#
+# USAGE:
+#   cd identity
+#   docker compose --env-file .env -f docker/docker-compose.prod.standalone.yml up -d --build
+#   docker compose --env-file .env -f docker/docker-compose.prod.standalone.yml logs -f
+#
+# ACCESS:
+#   Direct: http://<server>:8080/api/v1/...
+#   Health: http://<server>:8080/health
+#   Docs:   http://<server>:8080/docs
+# ============================================================================
+
+name: identity
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: identity_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-identity_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-identity_password}
+      POSTGRES_DB: ${DB_NAME:-identity_db}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    volumes:
+      - identity_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - identity-internal
+
+  # ---------------------------------------------------------------------------
+  # Redis
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: identity_redis
+    restart: unless-stopped
+    volumes:
+      - identity_redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - identity-internal
+
+  # ---------------------------------------------------------------------------
+  # Identity API
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.prod
+    image: identity-api:${PROJECT_VERSION:-latest}
+    container_name: identity_api
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      REDIS_HOST: redis
+      DEBUG: "false"
+    ports:
+      # Expose directly - configure your reverse proxy to forward here
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      - identity_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+    networks:
+      - identity-internal
+    command: >
+      sh -c "
+        echo '⏳ Waiting for PostgreSQL...' &&
+        until pg_isready -h postgres -p 5432 -U $${DB_USER}; do
+          sleep 2
+        done &&
+        echo '🔄 Running migrations...' &&
+        alembic upgrade head &&
+        echo '🚀 Starting API (production)...' &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 4 --log-level info
+      "
+
+volumes:
+  identity_postgres_data:
+    name: identity_postgres_data
+  identity_redis_data:
+    name: identity_redis_data
+  identity_logs:
+    name: identity_logs
+
+networks:
+  identity-internal:
+    driver: bridge

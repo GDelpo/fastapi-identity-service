@@ -1,0 +1,234 @@
+{# User detail page — view/edit user info, change role/status, delete #}
+{% extends "shell.html" %}
+
+{% block title %}{{ service_name }} — Detalle de Usuario{% endblock %}
+
+{% block page_content %}
+<div id="detail-page" data-user-id="{{ user_id }}">
+  <!-- Back -->
+  <a href="{{ base }}/dashboard/users" class="inline-flex items-center gap-1 text-xs font-medium mb-4 hover:underline" style="color: var(--color-accent);">
+    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Volver a usuarios
+  </a>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left: User info -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Header card -->
+      <div class="card p-6" id="detail-header">
+        <div class="flex items-start justify-between mb-6">
+          <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold" style="background: var(--color-accent-soft); color: var(--color-accent);">
+              <span id="detail-initials">?</span>
+            </div>
+            <div>
+              <h2 id="detail-username" class="text-xl font-bold">Cargando...</h2>
+              <div id="detail-email" class="text-sm font-mono mt-0.5" style="color: var(--color-text-muted);">—</div>
+            </div>
+          </div>
+          <div class="flex gap-2" id="detail-actions"></div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <div class="text-[10px] font-medium uppercase tracking-wider mb-1" style="color: var(--color-text-muted);">Rol</div>
+            <div id="detail-role">—</div>
+          </div>
+          <div>
+            <div class="text-[10px] font-medium uppercase tracking-wider mb-1" style="color: var(--color-text-muted);">Estado</div>
+            <div id="detail-active">—</div>
+          </div>
+          <div>
+            <div class="text-[10px] font-medium uppercase tracking-wider mb-1" style="color: var(--color-text-muted);">ID</div>
+            <div id="detail-id" class="text-xs font-mono truncate" style="color: var(--color-text-secondary);">—</div>
+          </div>
+          <div>
+            <div class="text-[10px] font-medium uppercase tracking-wider mb-1" style="color: var(--color-text-muted);">Creado</div>
+            <div id="detail-created" class="text-sm">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit card -->
+      <div class="card p-6" id="edit-card">
+        <h3 class="text-sm font-semibold mb-4 flex items-center gap-2">
+          <i data-lucide="edit-3" class="w-4 h-4"></i> Editar usuario
+        </h3>
+        <form id="edit-form" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[10px] font-medium uppercase tracking-wider mb-1" style="color: var(--color-text-muted);">Nombre de usuario</label>
+              <input type="text" id="edit-username" class="input" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-medium uppercase tracking-wider mb-1" style="color: var(--color-text-muted);">Email</label>
+              <input type="email" id="edit-email" class="input" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-medium uppercase tracking-wider mb-1" style="color: var(--color-text-muted);">Rol</label>
+              <select id="edit-role" class="select w-full">
+                <option value="admin">Admin</option>
+                <option value="employee">Empleado</option>
+                <option value="agent">Agente</option>
+                <option value="service">Servicio</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-medium uppercase tracking-wider mb-1" style="color: var(--color-text-muted);">Activo</label>
+              <select id="edit-active" class="select w-full">
+                <option value="true">Sí</option>
+                <option value="false">No</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="submit" class="btn btn-primary text-xs">
+              <i data-lucide="save" class="w-3.5 h-3.5"></i> Guardar cambios
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Right: Dates + Danger zone -->
+    <div class="space-y-6">
+      <!-- Dates card -->
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold mb-4">Fechas</h3>
+        <div class="space-y-3 text-sm" id="detail-dates">
+          <div class="skeleton h-4 w-full"></div>
+          <div class="skeleton h-4 w-3/4"></div>
+        </div>
+      </div>
+
+      <!-- Danger zone -->
+      <div class="card p-5 border" id="danger-zone" style="border-color: var(--color-error-soft);">
+        <h3 class="text-sm font-semibold mb-3 flex items-center gap-2" style="color: var(--color-error);">
+          <i data-lucide="alert-triangle" class="w-4 h-4"></i> Zona peligrosa
+        </h3>
+        <p class="text-xs mb-4" style="color: var(--color-text-muted);">
+          Eliminar este usuario es permanente y no se puede deshacer. Solo aplica a usuarios locales (no LDAP).
+        </p>
+        <button onclick="deleteUser()" class="btn btn-danger text-xs w-full">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Eliminar usuario
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+  document.body.dataset.currentPage = 'user_detail';
+
+  let currentUser = null;
+
+  function refreshCurrentPage() { loadUserDetail(); }
+
+  async function loadUserDetail() {
+    const container = document.getElementById('detail-page');
+    if (!container) return;
+    const userId = container.dataset.userId;
+
+    const resp = await apiFetch(`/${userId}`);
+    if (!resp || !resp.ok) {
+      container.innerHTML = '<div class="card p-8 text-center" style="color:var(--color-error)">No se pudo cargar el usuario.</div>';
+      return;
+    }
+
+    const u = await resp.json();
+    currentUser = u;
+
+    // Header
+    document.getElementById('detail-initials').textContent = (u.userName || '?')[0].toUpperCase();
+    document.getElementById('detail-username').textContent = u.userName;
+    document.getElementById('detail-email').textContent = u.mail || 'Sin email';
+    document.getElementById('detail-role').innerHTML = roleBadge(u.role);
+    document.getElementById('detail-active').innerHTML = boolBadge(u.isActive, 'Activo', 'Inactivo');
+    document.getElementById('detail-id').textContent = u.id;
+    document.getElementById('detail-created').textContent = formatDate(u.createdAt);
+
+    // Dates
+    const datesEl = document.getElementById('detail-dates');
+    const dateItems = [
+      ['Creado', u.createdAt],
+      ['Actualizado', u.updatedAt],
+    ].filter(([, v]) => v);
+    datesEl.innerHTML = dateItems.map(([label, val]) =>
+      `<div class="flex justify-between"><span style="color:var(--color-text-muted)">${label}</span><span class="font-mono text-xs">${formatDate(val)}</span></div>`
+    ).join('') || '<div class="text-sm" style="color:var(--color-text-muted)">Sin datos</div>';
+
+    // LDAP employees are managed in Active Directory — hide local-only controls
+    if ((u.role || '').toLowerCase() === 'employee') {
+      document.getElementById('edit-card').innerHTML = `
+        <div class="flex items-center gap-2 text-sm" style="color: var(--color-text-muted);">
+          <i data-lucide="info" class="w-4 h-4 flex-shrink-0" style="color: var(--color-accent);"></i>
+          <span>Usuario de Active Directory. Los datos se administran desde el servidor LDAP.</span>
+        </div>`;
+      document.getElementById('danger-zone').style.display = 'none';
+    } else {
+      // Edit form prefill (local users only)
+      document.getElementById('edit-username').value = u.userName || '';
+      document.getElementById('edit-email').value = u.mail || '';
+      document.getElementById('edit-role').value = (u.role || '').toLowerCase();
+      document.getElementById('edit-active').value = u.isActive ? 'true' : 'false';
+    }
+
+    lucide.createIcons();
+  }
+
+  // Edit form submit
+  document.getElementById('edit-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    const payload = {};
+    const newUsername = document.getElementById('edit-username').value.trim();
+    const newEmail = document.getElementById('edit-email').value.trim();
+    const newRole = document.getElementById('edit-role').value;
+    const newActive = document.getElementById('edit-active').value === 'true';
+
+    // Only send changed fields
+    if (newUsername && newUsername !== currentUser.userName) payload.user_name = newUsername;
+    if (newEmail !== (currentUser.mail || '')) payload.mail = newEmail || null;
+    if (newRole !== (currentUser.role || '').toLowerCase()) payload.role = newRole;
+    if (newActive !== currentUser.isActive) payload.is_active = newActive;
+
+    if (Object.keys(payload).length === 0) {
+      showToast('No hay cambios para guardar', 'error');
+      return;
+    }
+
+    const resp = await apiFetch(`/${currentUser.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (resp && resp.ok) {
+      showToast('Usuario actualizado');
+      setTimeout(() => loadUserDetail(), 300);
+    } else {
+      const err = await resp?.json().catch(() => ({}));
+      showToast(err.message || err.detail || 'Error al actualizar', 'error');
+    }
+  });
+
+  async function deleteUser() {
+    if (!currentUser) return;
+    if (!confirm(`¿Eliminar al usuario "${currentUser.userName}"? Esta acción es permanente.`)) return;
+
+    const resp = await apiFetch(`/${currentUser.id}`, { method: 'DELETE' });
+    if (resp && (resp.ok || resp.status === 204)) {
+      showToast('Usuario eliminado');
+      setTimeout(() => { window.location.href = BASE + '/dashboard/users'; }, 500);
+    } else {
+      const err = await resp?.json().catch(() => ({}));
+      showToast(err.message || err.detail || 'Error al eliminar', 'error');
+    }
+  }
+
+  // Init
+  loadUserDetail();
+</script>
+{% endblock %}

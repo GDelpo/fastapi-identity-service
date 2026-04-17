@@ -1,0 +1,10 @@
+Hola {{ name }},
+
+Gracias por registrarte. Por favor verificá tu dirección de email visitando:
+
+{{ verify_link }}
+
+Este enlace expirará en {{ expire_hours }} horas.
+
+---
+Este email fue enviado automáticamente por el Servicio de Identidad.

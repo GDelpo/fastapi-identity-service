@@ -1,0 +1,132 @@
+# ============================================================================
+# Identity Service - Docker Compose (Production with Traefik)
+# ============================================================================
+#
+# PREREQUISITES:
+#   1. Traefik running: docker compose -f docker-compose.traefik.yml up -d
+#   2. Network created: docker network create traefik-public
+#   3. .env file configured in parent directory
+#
+# USAGE:
+#   cd identity
+#   docker compose --env-file .env -f docker/docker-compose.prod.traefik.yml up -d --build
+#   docker compose --env-file .env -f docker/docker-compose.prod.traefik.yml logs -f
+#
+# ACCESS:
+#   Via Traefik: http://<server>/identity/api/v1/...
+#   Health:      http://<server>/identity/health
+#   Docs:        http://<server>/identity/docs
+# ============================================================================
+
+name: identity
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: identity_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-identity_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-identity_password}
+      POSTGRES_DB: ${DB_NAME:-identity_db}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    volumes:
+      - /opt/services/data/identity/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - identity-internal
+
+  # ---------------------------------------------------------------------------
+  # Redis
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: identity_redis
+    restart: unless-stopped
+    volumes:
+      - /opt/services/data/identity/redis:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - identity-internal
+
+  # ---------------------------------------------------------------------------
+  # Identity API
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.prod
+    image: identity-api:${PROJECT_VERSION:-latest}
+    container_name: identity_api
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      # Docker network overrides
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      REDIS_HOST: redis
+      DEBUG: "false"
+      # Internal communication with other services (direct, not via Traefik)
+      MAILSENDER_URL: http://mailsender_api:8081/api/v1/emails
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - identity-internal
+      - traefik-public
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      
+      # Router: Match requests to /identity/*
+      - "traefik.http.routers.identity.rule=PathPrefix(`/identity`)"
+      - "traefik.http.routers.identity.entrypoints=web"
+      - "traefik.http.routers.identity.service=identity"
+      
+      # Middlewares chain: rate limit + add prefix header + strip prefix
+      # 1. Rate limiting (defined in traefik/dynamic/middlewares.yml)
+      # 2. Add X-Forwarded-Prefix header so FastAPI knows the original prefix
+      # 3. Strip /identity prefix before forwarding to the service
+      - "traefik.http.routers.identity.middlewares=rate-limit@file,identity-prefix,identity-strip"
+      - "traefik.http.middlewares.identity-prefix.headers.customrequestheaders.X-Forwarded-Prefix=/identity"
+      - "traefik.http.middlewares.identity-strip.stripprefix.prefixes=/identity"
+      
+      # Service: Load balancer configuration
+      - "traefik.http.services.identity.loadbalancer.server.port=8080"
+      - "traefik.http.services.identity.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.identity.loadbalancer.healthcheck.interval=30s"
+    command: >
+      sh -c "
+        echo '⏳ Waiting for PostgreSQL...' &&
+        until pg_isready -h postgres -p 5432 -U $${DB_USER}; do
+          sleep 2
+        done &&
+        echo '🔄 Running migrations...' &&
+        alembic upgrade head &&
+        echo '🚀 Starting API (production)...' &&
+        gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8080 --log-level info --forwarded-allow-ips='*'
+      "
+
+networks:
+  # Internal network for DB and Redis
+  identity-internal:
+    driver: bridge
+  # External network for Traefik routing
+  traefik-public:
+    external: true
