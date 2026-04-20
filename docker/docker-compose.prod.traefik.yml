@@ -34,7 +34,7 @@ services:
       POSTGRES_DB: ${DB_NAME:-identity_db}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
     volumes:
-      - /opt/services/data/identity/postgres:/var/lib/postgresql/data
+      - ${DATA_DIR:-./data}/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -51,7 +51,7 @@ services:
     container_name: identity_redis
     restart: unless-stopped
     volumes:
-      - /opt/services/data/identity/redis:/data
+      - ${DATA_DIR:-./data}/redis:/data
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]

@@ -23,12 +23,12 @@
                 <tr>
                   <td style="vertical-align: middle;">
                     <div style="width: 36px; height: 36px; border-radius: 10px; background-color: rgba(59,130,246,0.15); display: inline-block; text-align: center; line-height: 36px;">
-                      <span style="color: #3b82f6; font-size: 18px; font-weight: bold;">N</span>
+                      <span style="color: #3b82f6; font-size: 18px; font-weight: bold;">I</span>
                     </div>
                   </td>
                   <td style="vertical-align: middle; padding-left: 12px;">
-                    <span style="color: #f1f5f9; font-size: 18px; font-weight: 700; letter-spacing: -0.3px;">Identity</span>
-                    <span style="color: #64748b; font-size: 12px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; padding-left: 8px;">{% block header_label %}Identidad{% endblock %}</span>
+                    <span style="color: #f1f5f9; font-size: 18px; font-weight: 700; letter-spacing: -0.3px;">{{ brand_name|default('Identity') }}</span>
+                    <span style="color: #64748b; font-size: 12px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; padding-left: 8px;">{% block header_label %}Service{% endblock %}</span>
                   </td>
                 </tr>
               </table>

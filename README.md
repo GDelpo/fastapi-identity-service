@@ -1,289 +1,166 @@
-# Servicio de Identidad
+# fastapi-identity-service
 
-Microservicio de autenticación y gestión de usuarios con FastAPI.
+<p>
+  <img alt="Language" src="https://img.shields.io/badge/python-3.12%2B-blue?logo=python&logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.128-009688?logo=fastapi&logoColor=white">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
+  <img alt="Status" src="https://img.shields.io/badge/status-stable-green">
+</p>
 
-## Repositorio
+> FastAPI microservice for authentication and user management, with optional LDAP integration, JWT tokens, role-based access and transactional email flows.
 
-```bash
-git clone https://git.example.com/example-org/identity.git
-git pull origin main   # actualizar
-```
+## Features
 
-> Primera vez en una máquina nueva: ver [SETUP.md](https://git.example.com/example-org/workspace/raw/branch/main/SETUP.md) para configurar credenciales Git.
+- JWT authentication with role-based expirations (admin, employee, agent, service)
+- User registration with email verification and password reset flows
+- Optional LDAP integration (bind + search) for employee auth
+- Redis-backed rate limiting, token storage and user cache
+- Admin dashboard (Jinja2 + Tailwind + vanilla JS, self-hosted)
+- Reverse-proxy agnostic: runs the same behind Traefik, Nginx or direct
+- Production-ready Docker setup: multi-stage build, gunicorn, non-root user
 
-## Tech Stack
+## Quickstart
 
-- **Python 3.14** + FastAPI 0.128
-- **PostgreSQL 16** + SQLModel
-- **Redis 7** (cache, rate limiting, tokens)
-- **Docker** + Docker Compose
-- **Traefik** (reverse proxy en producción)
+### Requirements
 
-## Características
+- Python 3.12+ (3.14 recommended)
+- PostgreSQL 15+
+- Redis 7+
+- (Optional) Docker + Docker Compose for the full stack
+- (Optional) An LDAP server if you want LDAP auth
+- (Optional) A mailsender-compatible HTTP endpoint for transactional emails
 
-- ✅ Autenticación JWT (access + refresh tokens)
-- ✅ Registro de usuarios con verificación por email
-- ✅ Reset de contraseña por email
-- ✅ Integración LDAP (opcional)
-- ✅ Rate limiting por endpoint
-- ✅ Integración con Mailsender para envío de emails
-
-## Integración con Mailsender
-
-Este servicio se comunica directamente con **Mailsender** para:
-- Envío de emails de verificación de cuenta
-- Envío de emails de reset de contraseña
-- Emails de bienvenida
-
-La comunicación es interna vía red Docker (`traefik-public`).
-
-## Escenarios de Despliegue
-
-### 1. Desarrollo Local (con Docker)
+### Install
 
 ```bash
-# Levantar servicios
-docker compose -f docker/docker-compose.dev.yml up -d
-
-# Ver logs
-docker compose -f docker/docker-compose.dev.yml logs -f
-
-# Parar
-docker compose -f docker/docker-compose.dev.yml down
-```
-
-**Acceso:** `http://localhost:8080`
-
-- Hot reload habilitado
-- Debug mode activo
-- Puertos expuestos directamente
-
----
-
-### 2. Desarrollo Local (sin Docker)
-
-```bash
-# Crear entorno virtual
+git clone https://github.com/GDelpo/fastapi-identity-service.git
+cd fastapi-identity-service
 python -m venv env
-source env/bin/activate       # Linux/Mac
-.\env\Scripts\Activate.ps1    # Windows
-
-# Instalar dependencias
+source env/bin/activate          # Linux/Mac
+# .\env\Scripts\Activate.ps1     # Windows
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
+```
 
-# Configurar
+### Configure
+
+```bash
 cp .env.example .env
-# Editar .env: DB_HOST=localhost, REDIS_HOST=localhost
+# Generate a secure JWT key:
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+# Paste the output as SECRET_KEY and fill in DB_*/REDIS_* credentials
+```
 
-# Ejecutar migraciones y servidor
+See [Configuration](#configuration) for the full variable list.
+
+### Run
+
+```bash
+# Apply migrations
 alembic upgrade head
+
+# Start the API (dev)
 uvicorn app.main:app --reload --port 8080
 ```
 
-**Requisitos:** PostgreSQL y Redis corriendo localmente.
-
----
-
-### 3. Producción (Standalone - sin proxy)
+Or with Docker:
 
 ```bash
+# Development (hot reload)
+docker compose -f docker/docker-compose.dev.yml up -d
+
+# Production (standalone)
 docker compose --env-file .env -f docker/docker-compose.prod.standalone.yml up -d --build
-```
 
-**Acceso directo:** `http://<server>:8080`
-
-- Sin reverse proxy
-- Ideal para testing o redes internas
-- Sin rate limiting global (solo el interno por endpoint)
-
----
-
-### 4. Producción (con Traefik) ✅ Recomendado
-
-```bash
-# Prerequisitos
-docker network create traefik-public
-# Traefik corriendo: docker compose -f docker-compose.traefik.yml up -d
-
-# Levantar servicio
+# Production (behind Traefik)
 docker compose --env-file .env -f docker/docker-compose.prod.traefik.yml up -d --build
-
-# Ver logs
-docker logs -f identity_api
 ```
 
-**Acceso via proxy:** `http://<server>/identity/api/v1/...`
+Access:
 
-Características:
-- Rate limiting global (100 req/s por IP)
-- Path prefix `/identity` manejado automáticamente
-- Health checks configurados
-- Listo para SSL/TLS
+- API: `http://localhost:8080/api/v1/...`
+- Health: `http://localhost:8080/health`
+- Swagger UI: `http://localhost:8080/docs`
+- Dashboard: `http://localhost:8080/dashboard/`
 
-## Logs
+## Configuration
 
-Los logs van a **stdout** y Docker los captura automáticamente.
+Variables are defined in `.env` (copy from `.env.example`):
 
-```bash
-# Ver logs en tiempo real
-docker logs -f identity_api
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DEBUG` | `true` enables dev mode (DEBUG logs, hot reload, security warnings off) | `false` |
+| `SECRET_KEY` | JWT signing key. Generate with `secrets.token_urlsafe(32)` | — (required) |
+| `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | PostgreSQL connection | `localhost`/`5432`/... |
+| `REDIS_HOST` / `REDIS_PORT` / `REDIS_DB` / `REDIS_PASSWORD` | Redis connection | `localhost`/`6379`/`0`/— |
+| `ADMIN_USER` / `ADMIN_PASSWORD` / `ADMIN_EMAIL` | Seeded on first migration | `admin` / `admin` / `admin@example.com` |
+| `CORS_ORIGINS` | JSON list of allowed origins | `["*"]` (change in prod) |
+| `LOG_FORMAT` | `json` or `text` | `json` |
+| `LDAP_URL` | LDAP server URL. Leave empty to disable LDAP | — |
+| `LDAP_ADMIN_USERNAME` / `LDAP_ADMIN_PASSWORD` | Bind credentials | — |
+| `LDAP_SEARCH_BASES` | JSON list of DN search bases | `[]` |
+| `MAILSENDER_URL` | HTTP endpoint for transactional emails | `http://localhost:8081/api/v1/emails` |
+| `MAX_LOGIN_ATTEMPTS` / `LOCKOUT_DURATION_MINUTES` | Account lockout policy | `5` / `15` |
+| `RATE_LIMIT_*` | Internal rate-limit knobs | `100` req / `60` s |
+| `DATA_DIR` | Host path used by `docker-compose.prod.traefik.yml` for Postgres + Redis data | `./data` |
 
-# Ver últimas 100 líneas
-docker logs --tail 100 identity_api
+## Endpoints
 
-# Buscar errores
-docker logs identity_api 2>&1 | grep ERROR
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| `POST` | `/api/v1/login` | Obtain JWT | public |
+| `GET`  | `/api/v1/me` | Current user | JWT |
+| `POST` | `/api/v1/register` | Register agent | SERVICE token |
+| `POST` | `/api/v1/register/confirm` | Confirm email | public (token) |
+| `POST` | `/api/v1/password-reset/request` | Request reset | public |
+| `POST` | `/api/v1/password-reset/confirm` | Confirm reset | public (token) |
+| `GET`  | `/api/v1/users` | List users | ADMIN |
+| `GET`  | `/health` | Health check | public |
+| `GET`  | `/docs` | Swagger UI | public |
+
+## Architecture
+
+```
+app/
+├── main.py           # App factory, lifespan, middleware, /health
+├── api.py            # REST endpoints
+├── service.py        # Business logic
+├── repository.py     # Data access (PostgreSQL via SQLModel)
+├── models.py         # SQLModel tables
+├── schemas.py        # Pydantic DTOs (camelCase JSON)
+├── config.py         # pydantic-settings
+├── auth.py           # JWT tokens, password hashing (bcrypt)
+├── cache.py          # Redis client
+├── ldap.py           # Optional LDAP client
+├── middleware.py     # ProxyHeaders + Request logging
+├── exceptions.py     # ServiceException + handlers
+├── email_client.py   # HTTP client for mailsender
+└── dashboard/        # Admin UI (Jinja2 + Tailwind + vanilla JS)
 ```
 
-**Formato:** JSON en producción (`LOG_FORMAT=json`), texto en desarrollo.
+Token expirations by role:
 
-> **Tip:** Para logging centralizado, agregar Loki + Grafana o ELK stack. 
-> Leen logs de Docker automáticamente sin cambios en el servicio.
+| Role | TTL | Use case |
+|------|-----|----------|
+| ADMIN | 1 hour | Administrative users |
+| EMPLOYEE | 30 min | Internal staff (LDAP) |
+| AGENT | 15 min | External users |
+| SERVICE | 365 days | Service-to-service calls |
 
 ## Tests
 
 ```bash
-pytest                              # Todos los tests
-pytest --cov=app --cov-report=html  # Con coverage
-pytest tests/test_e2e.py -v         # Test específico
+pytest                                    # all tests
+pytest -m unit                            # by marker (unit/integration/e2e/slow/ldap)
+pytest --cov=app --cov-report=html        # with coverage
 ```
 
-## Estructura
+## Notes
 
-```
-app/
-├── main.py          # Entry point, lifespan, middlewares
-├── api.py           # Endpoints REST
-├── service.py       # Lógica de negocio
-├── repository.py    # Acceso a datos (PostgreSQL)
-├── models.py        # Modelos SQLModel
-├── schemas.py       # DTOs Pydantic
-├── config.py        # Settings desde env vars
-├── auth.py          # JWT tokens, password hashing
-├── cache.py         # Redis client
-├── ldap.py          # Cliente LDAP (opcional)
-├── middleware.py    # Logging, proxy headers
-├── exceptions.py    # Errores custom + handlers
-└── email_client.py  # Cliente HTTP para Mailsender
-```
+- The app is designed to sit behind a reverse proxy that forwards `X-Forwarded-*` headers. `ProxyHeadersMiddleware` reads `X-Forwarded-Prefix` and sets `root_path` so Swagger UI and generated URLs stay correct.
+- Production Docker image uses **gunicorn** with `UvicornWorker` (not `uvicorn --workers`) to avoid Python 3.14 `forkserver` worker-death issues.
+- Logs go to **stdout** (12-factor). Plug into Loki/ELK at the infra layer, not the app.
 
-## Configuración
+## License
 
-Ver `.env.example` para todas las variables.
-
-### Variables Principales
-
-| Variable | Descripción | Default |
-|----------|-------------|---------|
-| `DEBUG` | Modo debug (afecta log_level y environment) | `false` |
-| `LOG_FORMAT` | Formato de logs: `json` o `text` | `json` |
-| `DB_HOST` | Host PostgreSQL | `localhost` |
-| `REDIS_HOST` | Host Redis | `localhost` |
-| `SECRET_KEY` | Clave JWT (**cambiar en prod**) | - |
-| `LDAP_URL` | URL servidor LDAP (opcional) | - |
-
-### Variables que NO necesitás en producción
-
-| Variable | Razón |
-|----------|-------|
-| `LOG_FILE` | Logs van a stdout → Docker los captura |
-| `DB_PORT`, `REDIS_PORT` | Usar defaults (5432, 6379) |
-| `ENVIRONMENT`, `LOG_LEVEL` | Se derivan de `DEBUG` |
-
-## Seguridad
-
-### Passwords
-
-- **Hashing:** bcrypt
-- **Requisitos:** mínimo 8 caracteres + mayúscula + minúscula + número + caracter especial
-
-### Tokens JWT
-
-| Rol | Expiración | Caso de uso |
-|-----|------------|-------------|
-| ADMIN | 1 hora | Usuarios administrativos |
-| EMPLOYEE | 30 minutos | Empleados internos (LDAP) |
-| AGENT | 15 minutos | Usuarios externos |
-| SERVICE | 365 días | Comunicación entre microservicios |
-
-### Rate Limiting
-
-| Nivel | Implementación | Límite |
-|-------|---------------|--------|
-| Global | Traefik middleware | 100 req/s por IP |
-| Password reset | Redis (por usuario) | 1 cada 2 min |
-| Email verification | Redis (por usuario) | 1 cada 2 min |
-
-### Bloqueo de cuenta
-
-- **5 intentos fallidos** → cuenta bloqueada 15 minutos
-- Configurable via `MAX_LOGIN_ATTEMPTS` y `LOCKOUT_DURATION_MINUTES`
-
-## Endpoints Principales
-
-| Método | Endpoint | Descripción | Auth |
-|--------|----------|-------------|------|
-| `POST` | `/api/v1/login` | Obtener token | No |
-| `GET` | `/api/v1/me` | Usuario actual | JWT |
-| `POST` | `/api/v1/register` | Registrar agente | SERVICE |
-| `POST` | `/api/v1/register/confirm` | Confirmar email | No |
-| `POST` | `/api/v1/password-reset/request` | Solicitar reset | No |
-| `POST` | `/api/v1/password-reset/confirm` | Confirmar reset | No |
-| `GET` | `/api/v1/users` | Listar usuarios | ADMIN |
-| `GET` | `/health` | Health check | No |
-| `GET` | `/docs` | Swagger UI | No |
-
-## Integración con Mailsender
-
-El servicio se integra con `mailsender` para emails transaccionales.
-
-### Flujo de Registro
-
-```
-Frontend                    Identidad                   Mailsender
-   │                           │                           │
-   │  POST /register           │                           │
-   │  + callback_url ─────────►│                           │
-   │                           │  POST /emails ───────────►│
-   │                           │  (verification email)     │
-   │                           │                           │
-   │                           │◄──────────────────────────│
-   │◄──────────────────────────│                           │
-   │  {user, email_sent_to}    │                           │
-```
-
-Usuario recibe email → click en link → `callback_url?token=xxx`
-
-```
-Frontend                    Identidad                   Mailsender
-   │                           │                           │
-   │  POST /register/confirm   │                           │
-   │  {token} ────────────────►│                           │
-   │                           │  POST /emails ───────────►│
-   │                           │  (welcome email)          │
-   │                           │                           │
-   │◄──────────────────────────│                           │
-   │  ✅ Usuario verificado    │                           │
-```
-
-### Flujo de Password Reset
-
-Similar: `POST /password-reset/request` → email con link → `POST /password-reset/confirm`
-
-## Decisiones de Diseño
-
-### ¿Por qué no refresh tokens?
-
-Para aplicación interna con tokens de 15-30 min, el re-login es UX aceptable. 
-Menos complejidad, menos superficie de ataque.
-
-### ¿Por qué no revocación inmediata de tokens?
-
-JWT stateless + tokens cortos = ventana de riesgo mínima (15 min máx para AGENT).
-Implementar revocación requeriría consulta a Redis/DB en cada request.
-
-### ¿Por qué logs a stdout?
-
-Patrón 12-factor apps. Docker captura logs, y herramientas como Loki/ELK 
-los recolectan automáticamente sin cambios en el servicio.
+[MIT](LICENSE) (c) 2026 Guido Delponte
