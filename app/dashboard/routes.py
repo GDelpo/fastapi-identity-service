@@ -50,8 +50,8 @@ def _base(request: Request) -> str:
 # ============================================================================
 
 _NAV_ITEMS = [
-    {"href_suffix": "/dashboard/", "icon": "bar-chart-3", "label": "Resumen", "key": "overview"},
-    {"href_suffix": "/dashboard/users", "icon": "users", "label": "Usuarios", "key": "users"},
+    {"href_suffix": "/dashboard/", "icon": "bar-chart-3", "label": "Overview", "key": "overview"},
+    {"href_suffix": "/dashboard/users", "icon": "users", "label": "Users", "key": "users"},
 ]
 
 
@@ -65,7 +65,7 @@ def _ctx(request: Request, *, page_title: str, active_key: str, **extra) -> dict
     return {
         "request": request,
         "base": base,
-        "service_name": "Identidad",
+        "service_name": "Identity",
         "service_icon": "shield",
         "nav_items": nav_items,
         "page_title": page_title,
@@ -83,7 +83,7 @@ async def dashboard_home(request: Request):
     """Overview — user stats + health."""
     return templates.TemplateResponse(
         "overview.html",
-        _ctx(request, page_title="Resumen", active_key="overview"),
+        _ctx(request, page_title="Overview", active_key="overview"),
     )
 
 
@@ -92,7 +92,7 @@ async def dashboard_users(request: Request):
     """Users list page."""
     return templates.TemplateResponse(
         "users.html",
-        _ctx(request, page_title="Usuarios", active_key="users"),
+        _ctx(request, page_title="Users", active_key="users"),
     )
 
 
@@ -101,7 +101,7 @@ async def dashboard_user_detail(request: Request, user_id: str):
     """User detail page."""
     return templates.TemplateResponse(
         "user_detail.html",
-        _ctx(request, page_title="Detalle de Usuario", active_key="users", user_id=user_id),
+        _ctx(request, page_title="User Detail", active_key="users", user_id=user_id),
     )
 
 
@@ -112,6 +112,6 @@ async def dashboard_login(request: Request):
     return templates.TemplateResponse("login.html", {
         "request": request,
         "base": base,
-        "service_name": "Identidad",
+        "service_name": "Identity",
         "service_icon": "shield",
     })

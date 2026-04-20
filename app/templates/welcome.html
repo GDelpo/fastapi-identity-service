@@ -1,19 +1,19 @@
 {% extends "_email_base.html" %}
 
-{% block title %}Bienvenido{% endblock %}
+{% block title %}Welcome{% endblock %}
 
 {% block content %}
-<h2 style="margin: 0 0 8px; font-size: 22px; font-weight: 700; color: #111827;">¡Bienvenido! 🎉</h2>
-<p style="margin: 0 0 20px; color: #64748b; font-size: 14px;">Tu cuenta fue creada exitosamente.</p>
+<h2 style="margin: 0 0 8px; font-size: 22px; font-weight: 700; color: #111827;">Welcome! 🎉</h2>
+<p style="margin: 0 0 20px; color: #64748b; font-size: 14px;">Your account has been created successfully.</p>
 
-<p style="margin: 0 0 8px; font-size: 15px; color: #334155;">Hola <strong>{{ name }}</strong>,</p>
+<p style="margin: 0 0 8px; font-size: 15px; color: #334155;">Hi <strong>{{ name }}</strong>,</p>
 <p style="margin: 0 0 24px; font-size: 15px; color: #334155; line-height: 1.6;">
-  Tu cuenta ha sido verificada y ya podés acceder a todos los servicios con tus credenciales.
+  Your account has been verified and you can now access all services with your credentials.
 </p>
 
 <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 0;">
   <p style="margin: 0; font-size: 13px; color: #166534; line-height: 1.5;">
-    ✅ Si tenés alguna consulta o problema con tu cuenta, contactá al administrador del sistema.
+    ✅ If you have any questions or problems with your account, contact the system administrator.
   </p>
 </div>
 {% endblock %}

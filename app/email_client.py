@@ -137,7 +137,7 @@ class EmailClient:
         return await self.send_email(
             SendEmailRequest(
                 to=[EmailRecipient(email=to_email, name=to_name)],
-                subject="Restablecer tu contraseña",
+                subject="Reset your password",
                 html_content=html_content,
                 text_content=text_content,
                 priority="critical",
@@ -175,7 +175,7 @@ class EmailClient:
         return await self.send_email(
             SendEmailRequest(
                 to=[EmailRecipient(email=to_email, name=to_name)],
-                subject="Verifica tu email",
+                subject="Verify your email",
                 html_content=html_content,
                 text_content=text_content,
                 priority="high",
@@ -201,7 +201,7 @@ class EmailClient:
         return await self.send_email(
             SendEmailRequest(
                 to=[EmailRecipient(email=to_email, name=to_name)],
-                subject="Bienvenido",
+                subject="Welcome",
                 html_content=html_content,
                 text_content=text_content,
                 priority="normal",
@@ -235,7 +235,7 @@ class EmailClient:
         return await self.send_email(
             SendEmailRequest(
                 to=[EmailRecipient(email=to_email, name=to_name)],
-                subject="Tu contraseña ha sido cambiada",
+                subject="Your password has been changed",
                 html_content=html_content,
                 text_content=text_content,
                 priority="high",

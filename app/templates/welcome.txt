@@ -1,8 +1,8 @@
-Hola {{ name }},
+Hi {{ name }},
 
-Tu cuenta ha sido creada y verificada exitosamente.
+Your account has been created and verified successfully.
 
-Ya podés acceder a todos los servicios con tus credenciales.
+You can now access all services with your credentials.
 
 ---
-Este email fue enviado automáticamente por el Servicio de Identidad.
+This email was sent automatically by the Identity Service.

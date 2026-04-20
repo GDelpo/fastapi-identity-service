@@ -9,8 +9,8 @@
     if (!iso) return '—';
     const d = new Date(iso);
     if (isNaN(d)) return '—';
-    const parts = new Intl.DateTimeFormat('es-AR', {
-      timeZone: 'America/Argentina/Buenos_Aires',
+    // Uses the browser's locale by default
+    const parts = new Intl.DateTimeFormat(undefined, {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
       hour12: false,
@@ -23,12 +23,12 @@
     if (!iso) return '—';
     const diff = Date.now() - new Date(iso).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'Ahora';
-    if (mins < 60) return 'hace ' + mins + ' min';
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return mins + ' min ago';
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return 'hace ' + hrs + 'h';
+    if (hrs < 24) return hrs + 'h ago';
     const days = Math.floor(hrs / 24);
-    return 'hace ' + days + 'd';
+    return days + 'd ago';
   }
 
   function esc(s) {
@@ -44,11 +44,11 @@
 
   function roleBadge(role) {
     const r = (role || '').toLowerCase();
-    const labels = { admin: 'Admin', employee: 'Empleado', agent: 'Agente', service: 'Servicio' };
+    const labels = { admin: 'Admin', employee: 'Employee', agent: 'Agent', service: 'Service' };
     return `<span class="badge badge-${r}">${labels[r] || r}</span>`;
   }
 
-  function boolBadge(val, trueLabel = 'Sí', falseLabel = 'No', trueClass = 'badge-active', falseClass = 'badge-inactive') {
+  function boolBadge(val, trueLabel = 'Yes', falseLabel = 'No', trueClass = 'badge-active', falseClass = 'badge-inactive') {
     return `<span class="badge ${val ? trueClass : falseClass}">${val ? trueLabel : falseLabel}</span>`;
   }
 

@@ -1,7 +1,7 @@
 {# Overview page — user stats + health + recent registrations #}
 {% extends "shell.html" %}
 
-{% block title %}{{ service_name }} — Resumen{% endblock %}
+{% block title %}{{ service_name }} — Overview{% endblock %}
 
 {% block page_content %}
 <div id="overview-page">
@@ -9,7 +9,7 @@
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
     <div class="stat-card">
       <div class="stat-value" id="stat-total">—</div>
-      <div class="stat-label">Total usuarios</div>
+      <div class="stat-label">Total users</div>
     </div>
     <div class="stat-card">
       <div class="stat-value" id="stat-admin" style="color: var(--color-warning);">—</div>
@@ -17,22 +17,22 @@
     </div>
     <div class="stat-card">
       <div class="stat-value" id="stat-employee" style="color: var(--color-info);">—</div>
-      <div class="stat-label">Empleados</div>
+      <div class="stat-label">Employees</div>
     </div>
     <div class="stat-card">
       <div class="stat-value" id="stat-agent" style="color: var(--color-success);">—</div>
-      <div class="stat-label">Agentes</div>
+      <div class="stat-label">Agents</div>
     </div>
     <div class="stat-card">
       <div class="stat-value" id="stat-service" style="color: var(--color-accent);">—</div>
-      <div class="stat-label">Servicios</div>
+      <div class="stat-label">Services</div>
     </div>
   </div>
 
   <!-- Health card (full width) -->
   <div class="card p-5 mb-6">
     <h2 class="text-sm font-semibold mb-4 flex items-center gap-2">
-      <i data-lucide="activity" class="w-4 h-4"></i> Estado del servicio
+      <i data-lucide="activity" class="w-4 h-4"></i> Service status
     </h2>
     <div id="health-status" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
       <div class="skeleton h-4 w-full"></div>
@@ -44,18 +44,18 @@
   <!-- Recent users -->
   <div class="card">
     <div class="px-5 py-4 flex items-center justify-between border-b" style="border-color: var(--color-border-subtle);">
-      <h2 class="text-sm font-semibold">Últimos registros</h2>
-      <a href="{{ base }}/dashboard/users" class="text-xs font-medium" style="color: var(--color-accent);">Ver todos →</a>
+      <h2 class="text-sm font-semibold">Recent users</h2>
+      <a href="{{ base }}/dashboard/users" class="text-xs font-medium" style="color: var(--color-accent);">View all →</a>
     </div>
     <div class="overflow-x-auto">
       <table class="data-table w-full" id="overview-users-table">
         <thead>
           <tr>
-            <th>Usuario</th>
+            <th>User</th>
             <th>Email</th>
-            <th>Rol</th>
-            <th>Activo</th>
-            <th>Creado</th>
+            <th>Role</th>
+            <th>Active</th>
+            <th>Created</th>
           </tr>
         </thead>
         <tbody id="overview-users-body">
@@ -112,7 +112,7 @@
     if (healthResp) {
       const deps = healthResp.dependencies || {};
       let items = `<div class="flex items-center justify-between text-sm">
-        <span>General</span>${healthBadge(healthResp.status)}
+        <span>Overall</span>${healthBadge(healthResp.status)}
       </div>`;
       for (const [name, dep] of Object.entries(deps)) {
         const label = name.charAt(0).toUpperCase() + name.slice(1);
@@ -125,12 +125,12 @@
         }
       }
       items += `<div class="flex items-center justify-between text-sm pt-3 mt-1 border-t" style="border-color:var(--color-border-subtle)">
-        <span style="color:var(--color-text-muted)">Versión</span>
+        <span style="color:var(--color-text-muted)">Version</span>
         <span class="font-mono text-xs" style="color:var(--color-text-secondary)">v${esc(healthResp.version)} · ${esc(healthResp.environment)}</span>
       </div>`;
       healthEl.innerHTML = items;
     } else {
-      healthEl.innerHTML = '<div class="text-sm" style="color:var(--color-error)">No se pudo obtener el estado</div>';
+      healthEl.innerHTML = '<div class="text-sm" style="color:var(--color-error)">Could not fetch status</div>';
     }
 
     // Recent users
@@ -143,7 +143,7 @@
   function renderOverviewTable(users) {
     const tbody = document.getElementById('overview-users-body');
     if (!users.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8" style="color:var(--color-text-muted)">No hay usuarios</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8" style="color:var(--color-text-muted)">No users</td></tr>';
       return;
     }
     tbody.innerHTML = users.map(u => {
@@ -151,7 +151,7 @@
         <td class="font-medium" style="color:var(--color-text-primary)">${esc(u.userName)}</td>
         <td class="font-mono text-xs max-w-[200px] truncate">${esc(u.mail || '—')}</td>
         <td>${roleBadge(u.role)}</td>
-        <td>${boolBadge(u.isActive, 'Activo', 'Inactivo')}</td>
+        <td>${boolBadge(u.isActive, 'Active', 'Inactive')}</td>
         <td class="text-xs whitespace-nowrap">${timeAgo(u.createdAt)}</td>
       </tr>`;
     }).join('');

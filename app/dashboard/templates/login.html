@@ -13,12 +13,12 @@
         <i data-lucide="{{ service_icon }}" class="w-7 h-7" style="color: var(--color-accent);"></i>
       </div>
       <h1 class="text-2xl font-bold tracking-tight">{{ service_name }}</h1>
-      <p class="text-sm mt-1" style="color: var(--color-text-muted);">Panel de administración</p>
+      <p class="text-sm mt-1" style="color: var(--color-text-muted);">Admin panel</p>
     </div>
 
     <form id="login-form" class="card p-6 space-y-4">
       <div>
-        <label class="block text-xs font-medium uppercase tracking-wider mb-1.5" style="color: var(--color-text-muted);">Usuario</label>
+        <label class="block text-xs font-medium uppercase tracking-wider mb-1.5" style="color: var(--color-text-muted);">Username</label>
         <input
           class="input"
           type="text"
@@ -26,34 +26,34 @@
           name="username"
           autocomplete="username"
           spellcheck="false"
-          placeholder="Nombre de usuario…"
+          placeholder="Username…"
           required
         />
       </div>
       <div>
-        <label class="block text-xs font-medium uppercase tracking-wider mb-1.5" style="color: var(--color-text-muted);">Contraseña</label>
+        <label class="block text-xs font-medium uppercase tracking-wider mb-1.5" style="color: var(--color-text-muted);">Password</label>
         <input
           class="input"
           type="password"
           id="password"
           name="password"
           autocomplete="current-password"
-          placeholder="Contraseña…"
+          placeholder="Password…"
           required
         />
       </div>
       <div id="login-error" class="hidden text-sm font-medium rounded-lg px-3 py-2" style="background: var(--color-error-soft); color: var(--color-error);"></div>
       <button id="btn-login" type="submit" class="btn btn-primary w-full justify-center">
-        <span id="btn-text">Ingresar</span>
+        <span id="btn-text">Sign in</span>
         <span id="btn-spinner" class="hidden items-center gap-2">
           <i data-lucide="loader-circle" class="w-4 h-4 animate-spin" aria-hidden="true"></i>
-          Iniciando sesión…
+          Signing in…
         </span>
       </button>
     </form>
 
     <p class="text-center text-xs mt-6" style="color: var(--color-text-muted);">
-      Autenticación local del servicio de identity.
+      Local authentication via the identity service.
     </p>
   </div>
 </div>
@@ -111,11 +111,11 @@
         window.location.href = BASE + '/dashboard/';
       } else {
         const err = await resp.json().catch(() => ({}));
-        errorEl.textContent = err.detail || err.message || 'Credenciales incorrectas';
+        errorEl.textContent = err.detail || err.message || 'Invalid credentials';
         errorEl.classList.remove('hidden');
       }
     } catch (err) {
-      errorEl.textContent = 'No se pudo conectar al servicio';
+      errorEl.textContent = 'Could not connect to the service';
       errorEl.classList.remove('hidden');
     } finally {
       btn.disabled = false;

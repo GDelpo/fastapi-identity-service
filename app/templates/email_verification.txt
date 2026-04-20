@@ -1,10 +1,10 @@
-Hola {{ name }},
+Hi {{ name }},
 
-Gracias por registrarte. Por favor verificá tu dirección de email visitando:
+Thanks for signing up. Please verify your email address by visiting:
 
 {{ verify_link }}
 
-Este enlace expirará en {{ expire_hours }} horas.
+This link will expire in {{ expire_hours }} hours.
 
 ---
-Este email fue enviado automáticamente por el Servicio de Identidad.
+This email was sent automatically by the Identity Service.
