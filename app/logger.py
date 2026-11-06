@@ -55,11 +55,29 @@ class JSONFormatter(logging.Formatter):
         # Add any extra attributes
         for key, value in record.__dict__.items():
             if key not in (
-                "name", "msg", "args", "created", "filename", "funcName",
-                "levelname", "levelno", "lineno", "module", "msecs",
-                "pathname", "process", "processName", "relativeCreated",
-                "stack_info", "exc_info", "exc_text", "thread", "threadName",
-                "request_id", "user_id", "message"
+                "name",
+                "msg",
+                "args",
+                "created",
+                "filename",
+                "funcName",
+                "levelname",
+                "levelno",
+                "lineno",
+                "module",
+                "msecs",
+                "pathname",
+                "process",
+                "processName",
+                "relativeCreated",
+                "stack_info",
+                "exc_info",
+                "exc_text",
+                "thread",
+                "threadName",
+                "request_id",
+                "user_id",
+                "message",
             ):
                 log_data[key] = value
 
@@ -124,10 +142,10 @@ def configure_logging() -> None:
 
 def get_logger(name: str) -> logging.Logger:
     """Get a logger with the given name.
-    
+
     Args:
         name: Logger name (typically __name__)
-        
+
     Returns:
         Configured logger instance
     """

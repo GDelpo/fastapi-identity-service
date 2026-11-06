@@ -25,18 +25,11 @@ def _escape_ldap_filter_chars(value: str) -> str:
     if not value:
         return value
 
-    escape_map = {
-        "*": r"\2a",
-        "(": r"\28",
-        ")": r"\29",
-        "\\": r"\5c",
-        "\x00": r"\00",
-    }
+    # INTENTIONAL: ldap3's escaper handles every character in one pass. The previous
+    # replace-loop escaped "*" to "\2a" and then escaped that backslash again ("\5c2a").
+    from ldap3.utils.conv import escape_filter_chars
 
-    result = value
-    for char, escaped in escape_map.items():
-        result = result.replace(char, escaped)
-    return result
+    return escape_filter_chars(value)
 
 
 class LDAPClient:
@@ -60,17 +53,18 @@ class LDAPClient:
         self.is_available = False
         self._last_error: str | None = None
 
-    def _get_connection(
-        self, user: str | None = None, password: str | None = None
-    ) -> Connection:
+    def _get_connection(self, user: str | None = None, password: str | None = None) -> Connection:
         """Create sync connection for threadpool execution."""
         from ldap3 import ALL, SAFE_SYNC, SIMPLE, Connection, Server
 
         server = Server(self.ldap_url, get_info=ALL)
+        # INTENTIONAL: fall back to the service account only when no credentials were
+        # passed at all. `password or admin_password` let an empty password bind as admin.
+        use_admin = user is None and password is None
         return Connection(
             server,
-            user=user or self.admin_username,
-            password=password or self.admin_password,
+            user=self.admin_username if use_admin else user,
+            password=self.admin_password if use_admin else password,
             authentication=SIMPLE,
             client_strategy=SAFE_SYNC,
             auto_bind=True,
@@ -128,6 +122,12 @@ class LDAPClient:
 
     def _sync_authenticate(self, username: str, password: str) -> bool:
         from ldap3.core.exceptions import LDAPBindError
+
+        # INTENTIONAL: an empty password is never sent. LDAP treats a simple bind with a
+        # DN and no password as an "unauthenticated bind", which some servers accept.
+        if not password or not username:
+            logger.warning("LDAP auth rejected: empty username or password")
+            return False
 
         try:
             user_data = self._sync_search(account_name=username)

@@ -16,6 +16,7 @@ FastAPI automatically handles X-Forwarded-* headers for proper URL generation.
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -26,9 +27,9 @@ from sqlmodel import select
 
 from app.api import router as users_router
 from app.cache import CacheManager
-from app.dashboard.routes import router as dashboard_router
 from app.config import settings
-from app.database import async_session_maker
+from app.dashboard.routes import router as dashboard_router
+from app.database import async_session_maker, engine
 from app.exceptions import (
     ServiceException,
     general_exception_handler,
@@ -38,7 +39,7 @@ from app.exceptions import (
 )
 from app.ldap import LDAPClient
 from app.logger import configure_logging, get_logger
-from app.middleware import RequestLoggingMiddleware, ProxyHeadersMiddleware
+from app.middleware import ProxyHeadersMiddleware, RequestLoggingMiddleware
 from app.schemas import DependencyStatus, HealthResponse, ServiceStatus
 
 # Configure logging before anything else
@@ -100,12 +101,14 @@ async def lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
             else:
                 _, error = ldap_client.get_status()
                 logger.warning(
-                    "⚠️ LDAP connection failed: %s", error,
+                    "⚠️ LDAP connection failed: %s",
+                    error,
                     extra={"extra_fields": {"ldap_url": settings.ldap_url}},
                 )
         except Exception as e:
             logger.warning(
-                "⚠️ LDAP initialization error: %s", e,
+                "⚠️ LDAP initialization error: %s",
+                e,
                 extra={
                     "extra_fields": {
                         "ldap_url": settings.ldap_url,
@@ -116,12 +119,18 @@ async def lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     else:
         logger.info("LDAP disabled, skipping initialization")
 
+    # Shared HTTP client for the email service (used by dependencies.get_email_client)
+    app_instance.state.http_client = httpx.AsyncClient(timeout=settings.email_service_timeout)
+
     yield
 
     # Cleanup
     logger.info("Shutting down Identity Service")
+    await app_instance.state.http_client.aclose()
     if hasattr(app_instance.state, "cache_manager"):
         await app_instance.state.cache_manager.disconnect()
+    # Close pooled DB connections; they belong to this event loop.
+    await engine.dispose()
 
 
 # =============================================================================
@@ -185,6 +194,7 @@ app.include_router(dashboard_router, prefix="/dashboard")
 # Health Check (at root level, not under api_prefix)
 # =============================================================================
 
+
 @app.get(
     "/health",
     response_model=HealthResponse,
@@ -197,20 +207,20 @@ app.include_router(dashboard_router, prefix="/dashboard")
 )
 async def health_check(request: Request) -> HealthResponse:
     """Check health of the application and its dependencies.
-    
+
     This endpoint is at the root level for easy access by:
     - Load balancers
     - Kubernetes probes
     - Monitoring systems
-    
+
     Returns:
         - 200 OK: Service is healthy or degraded (can still serve requests)
         - 503 Service Unavailable: Critical dependencies failed (PostgreSQL or Redis)
-    
+
     LDAP is optional - if unavailable, service is degraded but not unhealthy.
     """
     from fastapi.responses import JSONResponse
-    
+
     dependencies: dict[str, DependencyStatus] = {}
 
     # ==========================================================================
@@ -291,15 +301,11 @@ async def health_check(request: Request) -> HealthResponse:
     # ==========================================================================
     # Determine overall status
     # ==========================================================================
-    
+
     # Critical dependencies that must be healthy
     critical_deps = ["postgresql", "redis"]
-    critical_statuses = [
-        dependencies[dep].status 
-        for dep in critical_deps 
-        if dep in dependencies
-    ]
-    
+    critical_statuses = [dependencies[dep].status for dep in critical_deps if dep in dependencies]
+
     # If any critical dependency is unhealthy -> service is unhealthy
     if ServiceStatus.UNHEALTHY in critical_statuses:
         overall_status = ServiceStatus.UNHEALTHY

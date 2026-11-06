@@ -144,9 +144,7 @@ class InvalidTokenError(ServiceException):
 # ============================================================================
 
 
-async def service_exception_handler(
-    _request: Request, exc: ServiceException
-) -> JSONResponse:
+async def service_exception_handler(_request: Request, exc: ServiceException) -> JSONResponse:
     """Handle service exceptions."""
     logger.warning(
         f"Service exception: {exc.message}",
@@ -190,9 +188,7 @@ async def validation_exception_handler(
     )
 
 
-async def sqlalchemy_exception_handler(
-    _request: Request, exc: SQLAlchemyError
-) -> JSONResponse:
+async def sqlalchemy_exception_handler(_request: Request, exc: SQLAlchemyError) -> JSONResponse:
     """Handle database errors."""
     logger.error(
         "Database error",

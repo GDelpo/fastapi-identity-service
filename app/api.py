@@ -66,9 +66,7 @@ async def generate_token(
     - Email: user@example.com
     - Username: jdoe (sAMAccountName for LDAP users)
     """
-    logger.info(
-        "🔑 Login attempt", extra={"extra_fields": {"identifier": form_data.username}}
-    )
+    logger.info("🔑 Login attempt", extra={"extra_fields": {"identifier": form_data.username}})
     try:
         user = await user_service.authenticate(form_data.username, form_data.password)
         logger.info(
@@ -402,9 +400,7 @@ async def get_user(
     user_id: Annotated[UUID, Path(..., description="User UUID")],
     current_user: TokenData = Depends(admin_role_required),
     user_service: UserService = Depends(get_user_service),
-    user_name: Annotated[
-        str | None, Query(description="Search by username instead")
-    ] = None,
+    user_name: Annotated[str | None, Query(description="Search by username instead")] = None,
     fresh: Annotated[bool, Query(description="Bypass cache")] = False,
 ) -> UserResponse:
     """Get user by UUID or username (admin only)."""

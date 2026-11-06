@@ -70,7 +70,7 @@ def get_ldap_client(request: Request) -> LDAPClient | None:
 
 def get_cache_manager(request: Request) -> CacheManager:
     """Get CacheManager from app state.
-    
+
     Returns the initialized CacheManager from app.state.
     If not available (shouldn't happen in normal flow), raises an error.
     """
@@ -79,9 +79,11 @@ def get_cache_manager(request: Request) -> CacheManager:
         # This should not happen if lifespan initialized correctly
         # Create a fallback but log a warning
         from app.logger import get_logger
+
         logger = get_logger(__name__)
         logger.warning("CacheManager not found in app.state, creating new instance")
         from app.cache import CacheManager as CacheMgr
+
         cache = CacheMgr(redis_url=settings.redis_url)
         # Note: this instance won't be connected, operations will gracefully fail
     return cache
@@ -106,10 +108,10 @@ async def get_user_service(
 def get_email_client(
     request: Request,
 ) -> EmailClient:
-    """Get EmailClient for sending emails via mail sender service.
+    """Get EmailClient for sending emails via the email service.
 
     Propagates the caller's auth token to maintain traceability.
-    The source_service in mailsender will reflect the original caller.
+    The email service records the original caller as the source.
     """
     # Extract token from Authorization header
     auth_header = request.headers.get("Authorization", "")
@@ -118,7 +120,7 @@ def get_email_client(
         auth_token = auth_header[7:]  # Remove "Bearer " prefix
 
     return EmailClient(
-        url=settings.mailsender_url,
+        url=settings.email_service_url,
         client=request.app.state.http_client,
         auth_token=auth_token,
     )
@@ -173,9 +175,7 @@ class UserFilterParams(BaseModel):
 
 def get_user_filters(
     role: Annotated[str | None, Query(description="Filter by role")] = None,
-    is_active: Annotated[
-        bool | None, Query(description="Filter by active status")
-    ] = None,
+    is_active: Annotated[bool | None, Query(description="Filter by active status")] = None,
     search: Annotated[
         str | None,
         Query(min_length=3, max_length=100, description="Search in username or email"),
@@ -189,6 +189,4 @@ def get_user_filters(
     ] = "user_name:asc",
 ) -> UserFilterParams:
     """Dependency for user filter parameters."""
-    return UserFilterParams(
-        role=role, is_active=is_active, search=search, sort_by=sort_by
-    )
+    return UserFilterParams(role=role, is_active=is_active, search=search, sort_by=sort_by)

@@ -34,9 +34,7 @@ class UserService:
     # Cache Helpers
     # ========================================================================
 
-    async def _invalidate_user_cache(
-        self, user_name: str, user_id: str | None = None
-    ) -> None:
+    async def _invalidate_user_cache(self, user_name: str, user_id: str | None = None) -> None:
         """Invalidate all cache entries for a user.
 
         Args:
@@ -51,9 +49,7 @@ class UserService:
     # User Lookup Methods
     # ========================================================================
 
-    async def find_user(
-        self, username: str, use_cache: bool = True
-    ) -> UserResponse | None:
+    async def find_user(self, username: str, use_cache: bool = True) -> UserResponse | None:
         """Find user across LDAP → Database with optional cache. Returns None if not found."""
         key = cache_key("user", username, prefix="ldap")
 
@@ -91,9 +87,7 @@ class UserService:
             raise EntityNotFoundError("User", username)
         return user
 
-    async def get_user_by_id(
-        self, user_id: str, use_cache: bool = True
-    ) -> UserResponse:
+    async def get_user_by_id(self, user_id: str, use_cache: bool = True) -> UserResponse:
         """Get user by ID/UUID (must exist).
 
         Checks local DB first, then falls back to LDAP for employee users
@@ -108,9 +102,7 @@ class UserService:
         try:
             db_user = await self.repo.get_by_id(user_id)
             response = UserResponse.model_validate(db_user)
-            await self.cache.set(
-                cache_key("user_id", user_id), response.model_dump(), ttl=60
-            )
+            await self.cache.set(cache_key("user_id", user_id), response.model_dump(), ttl=60)
             return response
         except EntityNotFoundError:
             pass
@@ -121,9 +113,7 @@ class UserService:
                 ldap_users = await self.ldap.get_all()
                 for u in ldap_users:
                     if str(u.id) == str(user_id):
-                        await self.cache.set(
-                            cache_key("user_id", user_id), u.model_dump(), ttl=60
-                        )
+                        await self.cache.set(cache_key("user_id", user_id), u.model_dump(), ttl=60)
                         return u
             except Exception as e:
                 logger.warning("LDAP get_by_id fallback failed: %s", e)
@@ -166,9 +156,7 @@ class UserService:
         # If user exists, check if we can resend verification
         if existing_user:
             if existing_user.is_verified:
-                logger.warning(
-                    f"Username already exists and verified: {user_data.user_name}"
-                )
+                logger.warning(f"Username already exists and verified: {user_data.user_name}")
                 raise EntityAlreadyExistsError("User", user_data.user_name)
             else:
                 # User exists but not verified - will resend verification
@@ -215,9 +203,7 @@ class UserService:
         db_user = await self.repo.create(create_data)
         logger.info(
             f"Agent registered successfully: {user_data.user_name} (ID: {db_user.id})",
-            extra={
-                "extra_fields": {"user_id": str(db_user.id), "email": user_data.mail}
-            },
+            extra={"extra_fields": {"user_id": str(db_user.id), "email": user_data.mail}},
         )
         return (UserResponse.model_validate(db_user), False)
 
@@ -260,17 +246,13 @@ class UserService:
         )
         return UserResponse.model_validate(db_user)
 
-    async def update_user(
-        self, user_name: str, update_data: UserUpdate
-    ) -> UserResponse:
+    async def update_user(self, user_name: str, update_data: UserUpdate) -> UserResponse:
         """Update user by username."""
         updated = await self.repo.update(user_name, update_data)
         await self._invalidate_user_cache(user_name, str(updated.id))
         return UserResponse.model_validate(updated)
 
-    async def update_user_by_id(
-        self, user_id: str, update_data: UserUpdate
-    ) -> UserResponse:
+    async def update_user_by_id(self, user_id: str, update_data: UserUpdate) -> UserResponse:
         """Update user by ID."""
         logger.debug("Updating user: %s", user_id)
         updated = await self.repo.update_by_id(user_id, update_data)
@@ -337,9 +319,7 @@ class UserService:
         ldap_users: list[UserResponse] = []
         if self.ldap and self.ldap.is_available:
             try:
-                ldap_users = await self.ldap.get_all(
-                    search=search, skip=skip, limit=limit
-                )
+                ldap_users = await self.ldap.get_all(search=search, skip=skip, limit=limit)
             except Exception as e:
                 logger.warning("LDAP list failed: %s", e)
 
@@ -373,9 +353,7 @@ class UserService:
                 return 0
 
         if role:
-            return await self.repo.count(
-                user_role=role, is_active=is_active, search=search
-            )
+            return await self.repo.count(user_role=role, is_active=is_active, search=search)
 
         # Combined count
         total = 0
@@ -389,9 +367,7 @@ class UserService:
         total += await self.repo.count(is_active=is_active, search=search)
         return total
 
-    def _sort_users(
-        self, users: list[UserResponse], sort_order: str | None
-    ) -> list[UserResponse]:
+    def _sort_users(self, users: list[UserResponse], sort_order: str | None) -> list[UserResponse]:
         """Sort users by field."""
         if not sort_order or not users:
             return users
@@ -432,10 +408,13 @@ class UserService:
             AuthenticationError: Account locked, inactive, or unverified
             EntityNotFoundError: User not found or invalid password
         """
+        # INTENTIONAL: reject empty credentials before any backend sees them
+        # (an LDAP bind with an empty password can succeed as an anonymous bind).
+        if not identifier or not password:
+            raise AuthenticationError("Invalid username or password")
+
         id_type = detect_identifier_type(identifier)
-        logger.debug(
-            f"Authenticating user: {identifier} (type: {id_type.value})"
-        )
+        logger.debug(f"Authenticating user: {identifier} (type: {id_type.value})")
 
         # Try LDAP first
         if self.ldap and self.ldap.is_available:
@@ -479,9 +458,7 @@ class UserService:
                 )
                 return ldap_user
             else:
-                logger.warning(
-                    f"LDAP authentication failed: {identifier} - invalid password"
-                )
+                logger.warning(f"LDAP authentication failed: {identifier} - invalid password")
                 raise EntityNotFoundError("User", identifier)
 
         except EntityNotFoundError:
@@ -503,30 +480,20 @@ class UserService:
                 # Check if user is active (find_by_email doesn't check this)
                 if not db_user.is_active:
                     logger.warning("Account inactive: %s", identifier)
-                    raise AuthenticationError(
-                        "Account is inactive. Contact administrator."
-                    )
+                    raise AuthenticationError("Account is inactive. Contact administrator.")
             else:
                 db_user = await self.repo.get(identifier)
 
             # Check lockout
             if db_user.locked_until and db_user.locked_until > utc_now():
-                remaining = int(
-                    (db_user.locked_until - utc_now()).total_seconds() / 60
-                )
-                logger.warning(
-                    f"Account locked: {identifier} - {remaining} minutes remaining"
-                )
-                raise AuthenticationError(
-                    f"Account locked. Try again in {remaining} minutes."
-                )
+                remaining = int((db_user.locked_until - utc_now()).total_seconds() / 60)
+                logger.warning(f"Account locked: {identifier} - {remaining} minutes remaining")
+                raise AuthenticationError(f"Account locked. Try again in {remaining} minutes.")
 
             # Verify password
             if not await verify_password(password, db_user.hashed_password):
                 await self.repo.increment_failed_attempts(db_user.user_name)
-                logger.warning(
-                    f"Database authentication failed: {identifier} - invalid password"
-                )
+                logger.warning(f"Database authentication failed: {identifier} - invalid password")
                 raise EntityNotFoundError("User", identifier)
 
             # Check email verification for non-service/admin users
@@ -552,7 +519,7 @@ class UserService:
             )
             return UserResponse.model_validate(db_user)
 
-        except (EntityNotFoundError, AuthenticationError):
+        except EntityNotFoundError, AuthenticationError:
             raise
         except Exception:
             return None
@@ -635,9 +602,7 @@ class UserService:
 
         return (user, token)
 
-    async def confirm_password_reset(
-        self, token: str, new_password: str
-    ) -> UserResponse:
+    async def confirm_password_reset(self, token: str, new_password: str) -> UserResponse:
         """Confirm password reset with token.
 
         Args:

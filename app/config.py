@@ -1,12 +1,12 @@
 """Application settings and configuration."""
 
-from pydantic import Field, SecretStr, computed_field, model_validator
+from pydantic import AliasChoices, Field, SecretStr, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables.
-    
+
     This configuration is infrastructure-agnostic. The application runs
     the same way locally or behind any reverse proxy (Traefik, Nginx, etc.).
     Proxy-related configuration (path prefixes, routing) belongs in the
@@ -94,11 +94,6 @@ class Settings(BaseSettings):
     max_login_attempts: int = 5
     lockout_duration_minutes: int = 15
 
-    # Rate Limiting
-    rate_limit_enabled: bool = True
-    rate_limit_requests: int = 100
-    rate_limit_window_seconds: int = 60
-
     # =========================================================================
     # JWT
     # =========================================================================
@@ -122,26 +117,28 @@ class Settings(BaseSettings):
         return bool(self.ldap_url)
 
     # =========================================================================
-    # Mail Sender Service Integration
+    # Email Service Integration
     # =========================================================================
-    # Full URL to mailsender emails endpoint (no path appended by client)
+    # Full URL to the email service's emails endpoint (no path appended by client)
     # Examples:
     #   Local:  http://localhost:8081/api/v1/emails
-    #   Docker: http://mailsender_api:8081/api/v1/emails
-    #   Traefik: http://traefik/mailsender/api/v1/emails
-    mailsender_url: str = "http://localhost:8081/api/v1/emails"
-    mailsender_timeout: int = 30
+    #   Docker: http://email_service_api:8081/api/v1/emails
+    # MAILSENDER_URL is still read for older deployments.
+    email_service_url: str = Field(
+        default="http://localhost:8081/api/v1/emails",
+        validation_alias=AliasChoices("EMAIL_SERVICE_URL", "MAILSENDER_URL"),
+    )
+    email_service_timeout: int = Field(
+        default=30,
+        validation_alias=AliasChoices("EMAIL_SERVICE_TIMEOUT", "MAILSENDER_TIMEOUT"),
+    )
 
     # Password Reset & Email Verification
     password_reset_token_expire_minutes: int = 60
     email_verification_token_expire_minutes: int = 1440  # 24 hours
 
-    # =========================================================================
-    # Admin User Seed
-    # =========================================================================
-    admin_user: str = "admin"
-    admin_password: SecretStr = SecretStr("admin")
-    admin_email: str = "admin@example.com"
+    # Admin seed: ADMIN_USER / ADMIN_PASSWORD / ADMIN_EMAIL are read by the
+    # seed_admin_user migration only, with no defaults (see README).
 
     # =========================================================================
     # Validation
@@ -153,17 +150,17 @@ class Settings(BaseSettings):
 
         # Derive environment from debug if not set
         if self.environment is None:
-            object.__setattr__(self, 'environment', "development" if self.debug else "production")
+            object.__setattr__(self, "environment", "development" if self.debug else "production")
 
         # Derive log_level from debug if not set
         if self.log_level is None:
-            object.__setattr__(self, 'log_level', "DEBUG" if self.debug else "INFO")
+            object.__setattr__(self, "log_level", "DEBUG" if self.debug else "INFO")
         else:
-            object.__setattr__(self, 'log_level', self.log_level.upper())
+            object.__setattr__(self, "log_level", self.log_level.upper())
 
         # Ensure api_prefix starts with /
         if not self.api_prefix.startswith("/"):
-            object.__setattr__(self, 'api_prefix', f"/{self.api_prefix}")
+            object.__setattr__(self, "api_prefix", f"/{self.api_prefix}")
 
         # Security warnings for production
         if not self.debug:

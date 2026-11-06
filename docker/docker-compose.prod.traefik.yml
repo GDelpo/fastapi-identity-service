@@ -80,7 +80,7 @@ services:
       REDIS_HOST: redis
       DEBUG: "false"
       # Internal communication with other services (direct, not via Traefik)
-      MAILSENDER_URL: http://mailsender_api:8081/api/v1/emails
+      EMAIL_SERVICE_URL: http://email_service_api:8081/api/v1/emails
     depends_on:
       postgres:
         condition: service_healthy

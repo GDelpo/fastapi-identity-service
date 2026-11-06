@@ -1,4 +1,4 @@
-"""HTTP client for Mail Sender service integration."""
+"""HTTP client for the email service."""
 
 import httpx
 from pydantic import BaseModel
@@ -34,7 +34,7 @@ class SendEmailRequest(BaseModel):
 
 
 class EmailClient:
-    """Client for Mail Sender service."""
+    """Client for the email service."""
 
     def __init__(
         self,
@@ -45,8 +45,8 @@ class EmailClient:
         """Initialize email client.
 
         Args:
-            url: Full URL to the mailsender emails endpoint
-                 (e.g., http://mailsender_api:8081/api/v1/emails)
+            url: Full URL to the email service's emails endpoint
+                 (e.g., http://email_service_api:8081/api/v1/emails)
             client: Shared httpx.AsyncClient instance
             auth_token: Bearer token for authentication (propagated from caller)
         """
@@ -55,13 +55,13 @@ class EmailClient:
         self.auth_token = auth_token
 
     async def send_email(self, request: SendEmailRequest) -> dict:
-        """Send email via mailsender service.
+        """Send email via the email service.
 
         Args:
             request: Email request data
 
         Returns:
-            Response from mailsender
+            Response from the email service
 
         Raises:
             Exception: If sending fails
@@ -81,7 +81,7 @@ class EmailClient:
             if response.status_code in (200, 201, 202):
                 result = response.json()
                 logger.info(
-                    "✉️ Email sent via mailsender",
+                    "✉️ Email sent via email service",
                     extra={
                         "extra_fields": {
                             "email_id": result.get("id"),
@@ -94,14 +94,14 @@ class EmailClient:
 
             error_detail = response.json().get("detail", response.text)
             logger.error(
-                f"❌ Mailsender error: {error_detail}",
+                f"❌ Email service error: {error_detail}",
                 extra={"extra_fields": {"status": response.status_code}},
             )
             raise Exception(f"Failed to send email: {error_detail}")
 
         except httpx.RequestError as e:
             logger.error(
-                f"❌ Mailsender connection error: {e}",
+                f"❌ Email service connection error: {e}",
                 extra={"extra_fields": {"url": self.url}},
             )
             raise Exception(f"Mail service unavailable: {e}") from e
@@ -122,7 +122,7 @@ class EmailClient:
             callback_url: Base URL for password reset (e.g., https://myapp.com/reset-password)
 
         Returns:
-            Response from mailsender
+            Response from the email service
         """
         # Build full link: callback_url?token=xxx
         separator = "&" if "?" in callback_url else "?"
@@ -160,7 +160,7 @@ class EmailClient:
             callback_url: Base URL for email verification (e.g., https://myapp.com/verify-email)
 
         Returns:
-            Response from mailsender
+            Response from the email service
         """
         # Build full link: callback_url?token=xxx
         separator = "&" if "?" in callback_url else "?"
@@ -194,7 +194,7 @@ class EmailClient:
             to_name: User's display name
 
         Returns:
-            Response from mailsender
+            Response from the email service
         """
         html_content, text_content = render_welcome(to_name=to_name)
 
@@ -222,7 +222,7 @@ class EmailClient:
             to_name: User's display name
 
         Returns:
-            Response from mailsender
+            Response from the email service
         """
         from datetime import datetime
 

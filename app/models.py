@@ -31,9 +31,7 @@ class User(SQLModel, table=True):
     # Identification
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
     user_name: str = Field(unique=True, index=True, min_length=3, max_length=50)
-    mail: str | None = Field(
-        default=None, unique=True, index=True
-    )  # Optional for SERVICE users
+    mail: str | None = Field(default=None, unique=True, index=True)  # Optional for SERVICE users
     hashed_password: str = Field(exclude=True)
 
     # Status

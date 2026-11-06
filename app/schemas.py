@@ -18,7 +18,6 @@ from pydantic import (
 
 from app.models import UserRole
 
-
 # ============================================================================
 # Base Schema with camelCase serialization
 # ============================================================================
@@ -85,7 +84,7 @@ def validate_password_strength(password: str) -> str:
         ValueError: If password doesn't meet requirements
     """
     special_chars = "!@#$%^&*()_+-=[]{}|;:',.<>?/`~\"\\"
-    
+
     if not any(c.isupper() for c in password):
         raise ValueError("Password must contain at least one uppercase letter")
     if not any(c.islower() for c in password):
@@ -207,9 +206,7 @@ class UserRegisterResponse(CamelModel):
     message: str
     success: bool = True
     user: UserResponse | None = None
-    is_resend: bool = (
-        False  # True if verification email was resent for existing unverified user
-    )
+    is_resend: bool = False  # True if verification email was resent for existing unverified user
     email_sent_to: str | None = None  # Masked email when verification was sent
 
 
@@ -264,12 +261,12 @@ class UserResponse(CamelModel):
 
 class Token(BaseModel):
     """JWT token response.
-    
+
     NOTE: This intentionally does NOT inherit from CamelModel.
     OAuth2 RFC 6749 requires snake_case field names:
     - access_token (not accessToken)
     - token_type (not tokenType)
-    
+
     Swagger UI and OAuth2 clients expect this exact format.
     """
 

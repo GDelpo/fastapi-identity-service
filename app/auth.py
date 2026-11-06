@@ -10,7 +10,7 @@ import jwt
 from fastapi import Depends
 from fastapi.concurrency import run_in_threadpool
 from fastapi.security import OAuth2PasswordBearer
-from jwt.exceptions import ExpiredSignatureError, InvalidTokenError, PyJWTError
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from passlib.context import CryptContext
 
 from app.config import settings
@@ -51,7 +51,7 @@ async def get_password_hash(password: str) -> str:
 
 async def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash.
-    
+
     Uses threadpool to avoid blocking the event loop since bcrypt is CPU-bound.
     """
     return await run_in_threadpool(pwd_context.verify, plain_password, hashed_password)
@@ -59,17 +59,16 @@ async def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 async def create_access_token(user: UserResponse) -> Token:
     """Create JWT access token for a user.
-    
+
     Args:
         user: UserResponse with user data
-        
+
     Returns:
         Token with access_token and metadata
     """
     # Get expiration based on role
     expires_delta = TOKEN_EXPIRATION.get(
-        user.role,
-        timedelta(minutes=settings.access_token_expire_minutes)
+        user.role, timedelta(minutes=settings.access_token_expire_minutes)
     )
     expire = datetime.now(UTC) + expires_delta
 
@@ -99,13 +98,13 @@ async def create_access_token(user: UserResponse) -> Token:
 
 async def decode_token(token: str = Depends(oauth2_scheme)) -> TokenData:
     """Decode and validate JWT token.
-    
+
     Args:
         token: JWT token from Authorization header
-        
+
     Returns:
         TokenData with user information
-        
+
     Raises:
         AuthenticationError: If token is invalid or expired
     """
@@ -134,7 +133,7 @@ async def decode_token(token: str = Depends(oauth2_scheme)) -> TokenData:
 
 async def get_current_user(token_data: TokenData = Depends(decode_token)) -> TokenData:
     """Get current authenticated user from token.
-    
+
     This is a convenience dependency that can be used in route handlers.
     """
     return token_data
@@ -142,16 +141,16 @@ async def get_current_user(token_data: TokenData = Depends(decode_token)) -> Tok
 
 def require_roles(*roles: UserRole):
     """Dependency factory to require specific roles.
-    
+
     Usage:
         @router.get("/admin-only")
         async def admin_endpoint(user: TokenData = Depends(require_roles(UserRole.ADMIN))):
             ...
     """
+
     async def role_checker(current_user: TokenData = Depends(get_current_user)) -> TokenData:
         if current_user.role not in [r.value for r in roles]:
-            raise AuthenticationError(
-                f"Required roles: {[r.value for r in roles]}"
-            )
+            raise AuthenticationError(f"Required roles: {[r.value for r in roles]}")
         return current_user
+
     return role_checker

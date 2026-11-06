@@ -35,6 +35,7 @@ async def dashboard_static(path: str):
     file = _STATIC_DIR / path
     if not file.is_file() or not file.resolve().is_relative_to(_STATIC_DIR.resolve()):
         from fastapi.responses import JSONResponse
+
         return JSONResponse({"detail": "Not found"}, status_code=404)
     media_type = _MIME.get(file.suffix, "application/octet-stream")
     return FileResponse(file, media_type=media_type)
@@ -109,9 +110,12 @@ async def dashboard_user_detail(request: Request, user_id: str):
 async def dashboard_login(request: Request):
     """Login page."""
     base = _base(request)
-    return templates.TemplateResponse("login.html", {
-        "request": request,
-        "base": base,
-        "service_name": "Identity",
-        "service_icon": "shield",
-    })
+    return templates.TemplateResponse(
+        "login.html",
+        {
+            "request": request,
+            "base": base,
+            "service_name": "Identity",
+            "service_icon": "shield",
+        },
+    )

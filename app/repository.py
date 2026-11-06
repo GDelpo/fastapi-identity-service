@@ -99,9 +99,7 @@ class UserRepository:
 
         if search:
             pattern = f"%{search}%"
-            stmt = stmt.where(
-                (User.user_name.ilike(pattern)) | (User.mail.ilike(pattern))
-            )
+            stmt = stmt.where((User.user_name.ilike(pattern)) | (User.mail.ilike(pattern)))
 
         stmt = stmt.offset(skip)
         if limit:
@@ -133,9 +131,7 @@ class UserRepository:
 
         if search:
             pattern = f"%{search}%"
-            stmt = stmt.where(
-                (User.user_name.ilike(pattern)) | (User.mail.ilike(pattern))
-            )
+            stmt = stmt.where((User.user_name.ilike(pattern)) | (User.mail.ilike(pattern)))
 
         result = await self.session.execute(stmt)
         return result.scalar_one()
@@ -222,9 +218,7 @@ class UserRepository:
             user.updated_at = utc_now()
 
             if user.failed_login_attempts >= settings.max_login_attempts:
-                user.locked_until = utc_now() + timedelta(
-                    minutes=settings.lockout_duration_minutes
-                )
+                user.locked_until = utc_now() + timedelta(minutes=settings.lockout_duration_minutes)
                 logger.warning("Account locked: %s", user_name)
 
             await self.session.commit()

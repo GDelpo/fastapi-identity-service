@@ -51,8 +51,10 @@ def event_loop():
 @pytest.fixture
 def client():
     """Create a TestClient for FastAPI app with lifespan support."""
-    # TestClient automatically handles lifespan events
-    return TestClient(app)
+    # INTENTIONAL: `with` runs the lifespan (DB engine, Redis, HTTP client). A bare
+    # TestClient(app) skips it: Redis stays disconnected and logins fail at random.
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 # ============================================================================
@@ -83,11 +85,9 @@ async def async_engine():
 
 
 @pytest_asyncio.fixture
-async def db_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(async_engine) -> AsyncGenerator[AsyncSession]:
     """Create a fresh database session for each test."""
-    async_session_maker = sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_maker = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session_maker() as session:
         yield session
@@ -147,9 +147,7 @@ def mock_ldap_service():
             self._last_error = None
             self._mock_users = {}
 
-        def add_mock_user(
-            self, username: str, email: str, role: UserRole = UserRole.EMPLOYEE
-        ):
+        def add_mock_user(self, username: str, email: str, role: UserRole = UserRole.EMPLOYEE):
             """Add a mock user to LDAP responses."""
             self._mock_users[username] = UserResponse(
                 id=uuid.uuid5(uuid.NAMESPACE_DNS, f"ldap-{username}"),
@@ -166,9 +164,7 @@ def mock_ldap_service():
         async def get(self, username: str) -> UserResponse | None:
             return self._mock_users.get(username)
 
-        async def get_all(
-            self, search: str | None = None, skip: int = 0, limit: int = 50
-        ):
+        async def get_all(self, search: str | None = None, skip: int = 0, limit: int = 50):
             users = list(self._mock_users.values())
             if search:
                 users = [u for u in users if search.lower() in u.user_name.lower()]

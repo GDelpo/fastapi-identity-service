@@ -14,14 +14,18 @@ REQUIREMENTS:
     Or run: pytest tests/test_e2e.py -m e2e
 """
 
+import os
+
 import pytest
 
 from app.config import settings
 
-# Build API routes dynamically from settings
+# Build API routes dynamically from settings. The admin comes from the same
+# variables the seed_admin_user migration reads; tests that need it skip without it.
 API_PREFIX = settings.api_prefix
-ADMIN_USER = settings.admin_user
-ADMIN_PASSWORD = settings.admin_password.get_secret_value()
+# Without them, login gets a 401 and those tests skip.
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin-password-not-configured")
 
 
 def _get_admin_token(client):
@@ -98,7 +102,7 @@ class TestAuthenticationE2E:
         )
         assert me_response.status_code == 200
         data = me_response.json()
-        assert data["user_name"] == ADMIN_USER
+        assert data["userName"] == ADMIN_USER
         assert data["role"] == "admin"
 
     def test_invalid_token(self, client):
@@ -128,9 +132,9 @@ class TestAuthenticationE2E:
         )
         assert me_response.status_code == 200
         data = me_response.json()
-        assert data["user_name"] == ADMIN_USER
+        assert data["userName"] == ADMIN_USER
         assert data["role"] == "admin"
-        assert data["is_active"] is True
+        assert data["isActive"] is True
 
 
 # ============================================================================
@@ -143,9 +147,9 @@ class TestHealthE2E:
     """Health check endpoint tests."""
 
     def test_health_check(self, client):
-        """Test main health check endpoint returns valid response."""
+        """Health answers 200 when healthy and 503 when a dependency is down."""
         response = client.get("/health")
-        assert response.status_code == 200
+        assert response.status_code in (200, 503)
         data = response.json()
         assert data["status"] in ["healthy", "unhealthy", "degraded"]
         assert "version" in data
@@ -155,10 +159,10 @@ class TestHealthE2E:
     def test_health_check_healthy(self, client):
         """Test health check is healthy when infra is available."""
         response = client.get("/health")
-        assert response.status_code == 200
         data = response.json()
         if data["status"] != "healthy":
             pytest.skip("Infrastructure not fully available")
+        assert response.status_code == 200
         # dependencies is a dict with postgresql, redis, etc.
         assert isinstance(data["dependencies"], dict)
 
@@ -187,10 +191,10 @@ class TestAPIDocumentationE2E:
         assert response.status_code == 200
         assert "swagger" in response.text.lower()
 
-    def test_redoc(self, client):
-        """Test ReDoc is available."""
+    def test_redoc_is_disabled(self, client):
+        """ReDoc is turned off on purpose (redoc_url=None); only Swagger UI is served."""
         response = client.get("/redoc")
-        assert response.status_code == 200
+        assert response.status_code == 404
 
 
 # ============================================================================
@@ -203,9 +207,13 @@ class TestErrorHandlingE2E:
     """Error handling and edge case tests."""
 
     def test_nonexistent_endpoint(self, client):
-        """Test accessing nonexistent endpoint."""
-        response = client.get(f"{API_PREFIX}/nonexistent")
-        assert response.status_code == 404
+        """A path that matches no route is a 404.
+
+        A single segment such as /api/v1/nonexistent matches GET /{user_id}, which
+        requires a token, so it answers 401 before any lookup.
+        """
+        assert client.get(f"{API_PREFIX}/nonexistent/path").status_code == 404
+        assert client.get(f"{API_PREFIX}/nonexistent").status_code == 401
 
     def test_invalid_json_body(self, client):
         """Test sending invalid JSON."""
